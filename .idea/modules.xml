@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/aldor-modules.iml" filepath="$PROJECT_DIR$/aldor-modules.iml" />
+      <module fileurl="file://$PROJECT_DIR$/dual-numbers/dual-numbers.iml" filepath="$PROJECT_DIR$/dual-numbers/dual-numbers.iml" />
+      <module fileurl="file://$PROJECT_DIR$/spad-module/spad-module.iml" filepath="$PROJECT_DIR$/spad-module/spad-module.iml" />
+      <module fileurl="file://$PROJECT_DIR$/types/types.iml" filepath="$PROJECT_DIR$/types/types.iml" />
+    </modules>
+  </component>
+</project>
