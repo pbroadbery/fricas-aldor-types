@@ -4,7 +4,9 @@
 import from SpadTypeLib
 inline from SpadTypeLib
 
-IndexName: OutputType with
+import from String
+
+LibAttribute: OutputType with
     DECLS
     symbol: % -> Symbol
 == add
@@ -15,17 +17,18 @@ IndexName: OutputType with
     (out: TextWriter) << (n: %): TextWriter == out << rep n
 where
     NAMES(X) ==>
-        X(constructorForm,    "constructorForm")
-        X(constructorKind,    "constructorKind")
-        X(constructorModemap, "constructorModemap")
-        X(parents,            "parents")
-        X(operationAlist,     "operationAlist")
+        X(libAttrAbbreviation,       "abbreviation")
+        X(libAttrConstructorForm,    "constructorForm")
+        X(libAttrConstructorKind,    "constructorKind")
+        X(libAttrConstructorModemap, "constructorModemap")
+        X(libAttrOperationAlist,     "operationAlist")
+        X(libAttrParents,            "parents")
 
     NAMEDECL(id, val) ==> id: %
     NAMEVAL(id, val) ==> id: % == per(-val)
     DECLS ==> NAMES(NAMEDECL)
 
-SymbolKind: PrimitiveType with
+SymbolKind: Join(PrimitiveType, OutputType) with
     name: % -> Symbol
     valueOf: Symbol -> %
     DECLS
@@ -41,14 +44,15 @@ SymbolKind: PrimitiveType with
     local newSymbolKind(sym: Symbol): % == per sym
 
     (a: %) = (b: %): Boolean == rep(a) = rep(b)
-
+    (out: TextWriter) << (a: %): TextWriter == out << rep(a)
     VALS
 where
     NAMES(X) ==>
         X(domain, "domain")
 
     NAMEDECL(id, val) ==> id: %
-    NAMEVAL(id, val) ==> id: % == newSymbolKind(-val)
+    NAMEVAL(id, val) ==>
+        id: % == newSymbolKind(-val)
     DECLS ==> NAMES(NAMEDECL)
     VALS ==> NAMES(NAMEVAL)
 
@@ -62,11 +66,13 @@ AxiomSymbol: OutputType with
 == add
     Rep == Record(sym: Symbol, file: IndexedFile, constructorForm: AbSyn, lib: AxiomLibrary)
     import from Rep
-    import from IndexName, AbSynParser, AbSynUtils, Rep, SExpression
+    import from LibAttribute, AbSynParser, AbSynUtils, Rep, SExpression
     import from ConstructorModemap
     import from List TForm
 
-    local lookup(axSym: %, id: IndexName): SExpression == get(rep(axSym).file, symbol id)
+    local lookup(axSym: %, id: LibAttribute): SExpression ==
+        get(rep(axSym).file, symbol id)
+
     local env(axSym: %): Env ==
         import from AxiomLibrary
         env rep(axSym).lib
@@ -79,22 +85,28 @@ AxiomSymbol: OutputType with
     definedSymbol(axSym: %): Symbol == rep(axSym).sym
 
     newAxiomSymbol(idx: IndexedFile, lib: AxiomLibrary): % ==
-        form := parse get(idx, symbol constructorForm)
+        form := parse get(idx, symbol libAttrConstructorForm)
         per [principalOperator form, idx, form, lib]
 
     kind(axSym: %): SymbolKind ==
-        sx := lookup(axSym, constructorKind)
+        sx := lookup(axSym, libAttrConstructorKind)
         valueOf(sym sx)$SymbolKind
 
     constructorForm(axSym: %): AbSyn ==
-        sx := lookup(axSym, constructorForm)
+        sx := lookup(axSym, libAttrConstructorForm)
         parse sx
 
     constructorModemap(axSym: %): ConstructorModemap ==
-        sx := lookup(axSym, constructorModemap)
+        sx := lookup(axSym, libAttrConstructorModemap)
         newConstructorModemap sx
 
     domainForm(sym: %): TForm ==
+        stdout << "(DomainForm " << sym << newline
+        df := domainForm1 sym
+        stdout << " DomainForm " << sym << " = " << df << ")" << newline
+        df
+
+    domainForm1(sym: %): TForm ==
         modemap: ConstructorModemap := constructorModemap sym
         form := symForm modemap
         if nil? rest form then
@@ -114,22 +126,30 @@ AxiomSymbol: OutputType with
             lhsTf: TForm := newSyntax(annotate(env sym, parseSExpression lhs))
             if sexpr(-"T") = cond then lhsTf
             else newIf(cond, lhsTf)
-        [makeParent sx for sx in lookup(sym, parents)]
+        [makeParent sx for sx in lookup(sym, libAttrParents)]
 
     local operations(axSym: %): List TForm ==
         import from Fold(List TForm)
         makeOperation(sx: SExpression): List TForm ==
             (name, sx) := (first sx, rest sx)
             [makeSignature(env axSym, sym name, item) for item in sx]
-        (append!)/(makeOperation(sx) for sx in lookup(axSym, operationAlist))
+        (append!)/(makeOperation(sx) for sx in lookup(axSym, libAttrOperationAlist))
 
     local makeSignature(e: Env, name: Symbol, sx: SExpression): TForm ==
-        stdout << "make sig " << name << " --> " << sx << newline
-        (type, sx) := (first sx, rest sx)
-        (dunno, sx) := (first sx, rest sx)
-        cond := if not nil? sx then first sx else nil
-        if not nil? dunno then stdout << "found " << name << " --> " << dunno << newline
-        newSignature(name, newSyntax(annotate(e, parseSExpression type)), cond)
+        stdout << "make sig: " << sx << newline
+        safeFirst(sx: SExpression): SExpression == if nil? sx then nil else first sx
+        safeRest(sx: SExpression): SExpression == if nil? sx then nil else rest sx
+
+        (sigSx, sx) := (first sx, rest sx)
+        (slot, sx) := (first sx, rest sx)
+        (cond, sx) := (safeFirst sx, safeRest sx)
+        (const, sx) := (safeFirst sx, safeRest sx)
+
+        types := [newSyntax(annotate(e, parseSExpression tsx)) for tsx in sigSx]
+        stdout << "types are: " << types << newline
+        tf := if not nil? const then first types else newMap(newMulti(rest types), first types)
+
+        newSignature(name, tf, cond)
 
     local placeholderTForm(sx: SExpression): TForm ==
         sym? sx => newDeclare(sym sx, Type$TForm)
@@ -141,8 +161,9 @@ AxiomSymbol: OutputType with
 
 AxiomLibrary: with
     newLibrary: (Env, String) -> %
+    newLibrary: (Env, List(HashTable(Symbol, SExpression))) -> %
     env: % -> Env
-    tform: (%, Symbol) -> TForm
+    tform: (%, Symbol) -> Partial TForm
 == add
     Rep == Record(p: String,
                   env: Env,
@@ -150,27 +171,53 @@ AxiomLibrary: with
     import from Rep
     import from AxiomSymbol, IndexedFile, HashTable(Symbol, AxiomSymbol)
 
-    env(lib: %): Env == rep(lib).env
+    env(lib: %): Env ==
+        lookup(sym: Symbol): Partial TForm == tform(lib, sym)
+        newEnv(lookup, rep(lib).env)
+
+    newLibrary(e: Env, l: List(HashTable(Symbol, SExpression))): % ==
+        rec := per ["testlib", e, table()]
+        for sym in (makeSymbol(rec, tbl) for tbl in l) repeat
+            import from Symbol
+            stdout << "AxiomLibrary::newLib: " << sym << definedSymbol sym << newline
+            rep(rec).files.(definedSymbol sym) := sym
+        rec
+
+
+    local makeSymbol(lib: %, tbl: HashTable(Symbol, SExpression)): AxiomSymbol ==
+        import from Symbol, SExpression, LibAttribute
+        idxFile: IndexedFile := newIndexedFile(name sym tbl.(symbol libAttrAbbreviation), tbl)
+        newAxiomSymbol(idxFile, lib)
 
     newLibrary(e: Env, p: String): % ==
         import from Directory, List FileName, FileName, Symbol
         rec := per [p, e, table()]
         for fname in listDirectory p repeat
+            stdout << "fname: " << fname << newline
             if extension(fname) = "NRLIB" then
                 theAxiomSymbol := newAxiomSymbol(newIndexedFile(fname::String + "/index.KAF"), rec)
                 rep(rec).files.(definedSymbol theAxiomSymbol) := theAxiomSymbol
-        stdout << "Created library. Symbols: " << rep(rec).files << newline
+                stdout << "Defining " << definedSymbol theAxiomSymbol << " " << fname << newline
+        stdout << "Created library. Name: " << p << newline
         rec
 
-    local axiomSymbol(lib: %, sym: Symbol): AxiomSymbol == rep(lib).files.sym
+    local axiomSymbol(lib: %, sym: Symbol): Partial AxiomSymbol ==
+        import from Partial AxiomSymbol
+        r := find(sym, rep(lib).files)
+        if failed? r then
+            stdout << "Failed to find " << sym << " in " << rep(lib).p << newline
+        r
 
-    tform(lib: %, sym: Symbol): TForm ==
+    tform(lib: %, sym: Symbol): Partial TForm ==
         import from AbSyn
-        axSym: AxiomSymbol := axiomSymbol(lib, sym)
-        theKind: SymbolKind := kind axSym
+        axSym: Partial AxiomSymbol := axiomSymbol(lib, sym)
+        stdout << "Sym: " << sym << " --> " << axSym << newline
+        failed? axSym => failed
+        theKind: SymbolKind := kind retract axSym
+        stdout << "kind: " << theKind << newline
         theKind = domain =>
-            domainForm(axSym)
-        never
+            [domainForm(retract axSym)]
+        failed
 
 Scope: with
     tform: (%, AbSyn) -> Partial TForm
@@ -187,6 +234,7 @@ Scope: with
 
 ConstructorModemap: OutputType with
     newConstructorModemap: SExpression -> %
+    newConstructorModemap: SExpression -> %
     symForm: % -> SExpression
     bodyType: % -> SExpression
     args: % -> List SExpression
@@ -196,12 +244,9 @@ ConstructorModemap: OutputType with
 
     newConstructorModemap(sx: SExpression): % ==
         import from SExpression
-        stdout << "MM: Whole " << sx << newline
-        stdout << "MM: 1: " << first sx << newline
         mainForm := first sx
         symForm := first mainForm
         symFormType := first rest mainForm
-        stdout << "symform " << symForm << newline
         per [symForm, symFormType, []]
 
     symForm(mm: %): SExpression == rep(mm).symForm
@@ -211,7 +256,7 @@ ConstructorModemap: OutputType with
     (out: TextWriter) << (mm: %): TextWriter == out << "{mm: " << symForm << "}"
 
 testAxiomLib(): () ==
-    import from Symbol, TForm
+    import from Symbol, TForm, Partial TForm
     -- not right, but it'll do.
     env: Env := emptyEnv((ab: AnnotatedAbSyn): TForm +-> Type$TForm)
     lib: AxiomLibrary := newLibrary(env, "/home/pab/Work/fricas/build/src/algebra")
@@ -221,4 +266,4 @@ testAxiomLib(): () ==
     strType := tform(lib, -"List")
     stdout << strType << newline
 
-testAxiomLib()
+--testAxiomLib()

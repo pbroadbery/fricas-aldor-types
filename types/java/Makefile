@@ -14,19 +14,12 @@ ALDOR_1 = $(ALDOR_SDK)/bin/gdb-aldor
 LOG_1 =
 X = $(DBG)
 
-LIB_NAME := SpadType
-ALDOR_FILES = deptable extobj ptrtype index absyn axiomlib tform tfsatisfier
-TEST_FILES = tform_test axiomlib_test tformaxiomlib_test
-
-absyn_deps = index extobj
-extobj_deps = deptable
-tform_deps = absyn
-axiomlib_deps = tform
-tfsatisfier_deps = tform
-tform_testaxiomlib_deps = tform axiomlib
+LIB_NAME := JavaTest
+ALDOR_FILES = exp_java imp_java
+TEST_FILES =
 
 #LOG_FLAGS = -WD+inline -WD+inlExpr -WD+inlCall -WD+inlUnit -WD+emerge -WD+optf
 #OPT_FLAGS := -Q9 -Qinline-all
-OPT_FLAGS := -Zdb -Cargs=-g
+OPT_FLAGS := -Fjava
 
 include ../build.mk

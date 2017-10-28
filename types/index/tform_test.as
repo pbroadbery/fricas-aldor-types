@@ -85,8 +85,7 @@ test(): () ==
 test2(): () ==
     import from AbSyn, SExpression, TForm, Symbol, Assert String, List TForm
     env: Env := basicEnv()
-    ab := (annotate env) parseSExpression fromString "String"
-    sat := (satisfier$SimpleSatisfier)::FnSatisfier
+    ab: AnnotatedAbSyn := (annotate env) parseSExpression fromString "String"
     tt := infer(env, ab)
     stdout << "Infered: " << tt << newline
     exps: List Export := catExports(tt)
@@ -97,7 +96,6 @@ test3(): () ==
     import from AbSyn, SExpression, TForm, Symbol, Assert String, List TForm
     env: Env := basicEnv()
     ab: AnnotatedAbSyn := (annotate env) parseSExpression fromString "(List String)"
-    sat := (satisfier$SimpleSatisfier)::FnSatisfier
     tt := infer(env, ab)
     stdout << "Infered: " << tt << newline
     exps: List Export := catExports(tt)
@@ -107,4 +105,4 @@ test3(): () ==
 
 test()
 test2()
-test3()
+--test3()

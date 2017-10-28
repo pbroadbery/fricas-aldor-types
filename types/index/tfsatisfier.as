@@ -22,11 +22,14 @@ SimpleSatisfier: with
     local domainSat(S: TForm, T: TForm): Partial SatResult ==
         not isCategory? S => failed
         not isCategory? T => failed
+        stdout << "(DomainSat: " << S << " && " << T << newline
         parentsS := catParents S
         parentsT := catParents T
         stdout << "ParentS: " << parentsS << newline
         stdout << "ParentT: " << parentsT << newline
-        if _and/(member?(parentT, parentsS) for parentT in parentsT) then [success()] else [failed()]
+        res := if _and/(member?(parentT, parentsS) for parentT in parentsT) then [success()] else [failed()]
+        stdout << "DomainSat: " << res << ")" << newline
+        res
 
     local declareSatRHS(S: TForm, T: TForm): Partial SatResult ==
         import from TfDeclare
@@ -40,7 +43,7 @@ SimpleSatisfier: with
 
     local isCategory?(tf: TForm): Boolean ==
         import from Symbol
-        stdout << "isCat " << tf << " " << category? tf << " " << general? tf << " " << id tf << newline
+        stdout << "isCategory? " << tf << " " << category? tf << " general? tf = " << general? tf << " id tf = " << id tf << newline
         import from TfCategory, TfGeneral
         category? tf => true
         general? tf => isSyntaxCategory(tf)

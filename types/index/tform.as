@@ -1,6 +1,7 @@
 #include "aldor"
 #include "aldorio"
 #pile
+#library SpadTypeLib "libSpadType.al"
 import from SpadTypeLib
 inline from SpadTypeLib
 
@@ -22,7 +23,7 @@ TForm: OutputType with
     newMap: (List %, List %) -> %
     newMulti: List % -> %
     newSignature: (Symbol, %, SExpression) -> %
-    newSyntax: (AnnotatedAbSyn) -> %
+    newSyntax: AnnotatedAbSyn -> %
     id: % -> Symbol
 
     bind: (%, AnnotatedAbSyn) -> %
@@ -44,7 +45,7 @@ TForm: OutputType with
         rep(tf1).ab = rep(tf2).ab and rep(tf1).inner = rep(tf2).inner
 
     Type: % == per [newNone(), anyForm [type()$TfType]] -- per [newId(-"Type"), anyForm [type()$TfType]]
-    Category: % == per [newNone(), anyForm [type()$TfType]] -- per [newId(-"Category"), anyForm [catType()$TfCatType]]
+    Category: % == per [newNone(), anyForm [catType()$TfCatType]] -- per [newId(-"Category"), anyForm [catType()$TfCatType]]
     newCategory(parents: List %): % ==
         per [newNone(), anyForm [newTfCategory(parents)]]
     newDeclare(sym: Symbol, type: %): % == per [newNone(), anyForm [newTfDeclare(sym, type)]]
@@ -184,7 +185,7 @@ TfCatType: TFormSubType with
     catType?(tf: TForm): Boolean == id$% = id tf
 
 TfGeneral: TFormSubType with
-    newTfGeneral: AnnotatedAbSyn -> %
+    newTfGeneral: (AnnotatedAbSyn) -> %
     syntax: % -> AnnotatedAbSyn
     type: % -> TForm
     general?: TForm -> Boolean
@@ -203,6 +204,8 @@ TfGeneral: TFormSubType with
     syntax(tf: %): AnnotatedAbSyn == rep(tf).ab
 
     type(tf: %): TForm == rep(tf).infer()
+
+    (tf1: %) = (tf2: %): Boolean == rep(tf1).ab = rep(tf2).ab
 
     (out: TextWriter) << (t: %): TextWriter == out << "{" << syntax t << "}"
     subst(tf: %, sigma: AbSub): % == newTfGeneral(subst(sigma, syntax tf))
@@ -293,11 +296,14 @@ TfMap: TFormSubType with
         args := if multi? args then args else newMulti [args]
         ret := if multi? ret then ret else newMulti [ret]
         per [args, ret]
+
     arg(m: %): TForm == rep(m).arg
     ret(m: %): TForm == rep(m).ret
 
     args(m: %): List TForm == parts(rep(m).arg::TfMulti)
     rets(m: %): List TForm == parts(rep(m).ret::TfMulti)
+
+    (tf1: %) = (tf2: %): Boolean == arg tf1 = arg tf2 and ret tf1 = ret tf2
 
     subst(tf: %, sigma: AbSub): % ==
         newTfMap(subst(arg tf, sigma), subst(ret tf, sigma))
@@ -340,6 +346,8 @@ TfMulti: TFormSubType with
     newTfMulti(l: List TForm): % == per l
 
     parts(t: %): List TForm == rep t
+
+    (tf1: %) = (tf2: %): Boolean == rep tf1 = rep tf2
 
     (out: TextWriter) << (t: %): TextWriter == out << "{" << rep t << "}"
     subst(tf: %, sigma: AbSub): % == newTfMulti [subst(part, sigma) for part in rep tf]
@@ -430,8 +438,10 @@ Env: with
         failed
 
     infer(e: %, ab: AnnotatedAbSyn): TForm ==
-        stdout << "env infer: " << ab << newline
-        first(rep(e)).infer(ab)
+        stdout << "(env infer: " << ab << newline
+        res := first(rep(e)).infer(ab)
+        stdout << " env infer: " << ab << " res == " << res << ")" <<newline
+        res
 
 AnnotatedId: with
     PrimitiveType
@@ -448,12 +458,16 @@ AnnotatedId: with
     id(aid: %): Symbol == rep(aid).id
     env(aid: %): Env == rep(aid).e
 
-    (a: %) = (b: %): Boolean == never -- env equality not implemented
+    (a: %) = (b: %): Boolean ==
+        import from Symbol
+        id a = id b -- env equality not implemented, so not 100% safe
+
     sexpression(aid: %): SExpression == sexpr id aid
 
     type(aid: %): TForm ==
-        import from Partial TForm
-        retract lookup(env aid, id aid)
+        ptf: Partial TForm := lookup(env aid, id aid)
+        failed? ptf => error("Unknown: " + name id(aid))
+        retract ptf
 
 AnnotatedAbSyn: AbSynCategory AnnotatedId with
     OutputType
@@ -507,8 +521,14 @@ TypePackage: with
     infer: (FnSatisfier, AnnotatedAbSyn) -> TForm
     exports: TForm -> List Export
 == add
+
     infer(sat: FnSatisfier, ab: AnnotatedAbSyn): TForm ==
-        stdout << "Infer: " << ab << newline
+        stdout << "(TypePackage:::Infer: " << ab << newline
+        tf := infer1(sat, ab)
+        stdout << " TypePackage::Infer: " << tf << ")" << newline
+        tf
+
+    local infer1(sat: FnSatisfier, ab: AnnotatedAbSyn): TForm ==
         id? ab => inferId ab
         apply? ab => inferApply(sat, ab)
         none? ab => Type$TForm
@@ -545,29 +565,4 @@ TypePackage: with
         self: AnnotatedAbSyn := boundSyntax tf
         sigma: AbSub := newSubst(-"%", self)
         [subst(exp, sigma) for exp in catExports tf]
-
-#if 0
-test2(): () ==
-    import from Symbol, TForm
-    lib: AxiomLibrary := newLibrary("/home/pab/Work/fricas/build/src/algebra")
-
-    --listInteger := tform(lib, parseSExpression fromString "List Integer")
-    --stdout << "imports of List Integer: " << domImports listInteger
-
-test3(): () ==
-    import from TForm
-    lib: AxiomLibrary := newLibrary("/home/pab/Work/fricas/build/src/algebra")
-
-    type: TForm := tform(lib, -"Type")
-    string: TForm := tform(lib, -"String")
-
-    assertTrue(satisfies(string, type))
-    assertFalse(satisfies(type, string))
-
-    mapStrToStr := tform(lib, parseSExpression fromString "String -> String")
-    assertTrue(satisfies(mapStrToStr, type))
-    assertFalse(satisfies(type, mapStrToStr))
-    assertFalse(satisfies(string, mapStrToStr))
-#endif
-
 

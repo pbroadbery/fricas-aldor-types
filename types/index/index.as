@@ -6,11 +6,15 @@ IndexedFile: with
     newIndexedFile: String -> %
     get: (%, Symbol) -> SExpression
     keys: % -> List Symbol
+    newIndexedFile: (String, HashTable(Symbol, SExpression)) -> %
 == add
     Rep == Record(fname: String, values: HashTable(Symbol, ValPtr))
     ValPtr == Union(posn: MachineInteger, val: SExpression)
 
     import from Rep, ValPtr, Integer
+
+    newIndexedFile(name: String, tbl: HashTable(Symbol, SExpression)): % ==
+        per [name, [(key, [sx]) for (key, sx) in tbl]]
 
     newIndexedFile(name: String): % ==
        file := per [name, table()]
@@ -22,12 +26,9 @@ IndexedFile: with
     get(indexedFile: %, k: Symbol): SExpression ==
         import from List Symbol
         import from File, SExpressionReader, SExpression, HashTable(String, ValPtr), Partial SExpression
-        stdout << "Get: "  << k << " "  << keys indexedFile << newline
-        for (ak, av) in rep(indexedFile).values repeat stdout << "K: " << ak << " " << (k = ak) << newline
         vp := rep(indexedFile).values.k
         vp case val => vp.val
         file := open(rep(indexedFile).fname)
-        stdout << "Posn is " << vp.posn << newline
         setPosition!(file, vp.posn)
         valsx := read(file::TextReader)
         vp.val := retract valsx
@@ -38,15 +39,12 @@ IndexedFile: with
         import from File, Symbol, SExpressionReader, SExpression, HashTable(Symbol, ValPtr)
 
         file := open(rep(indexedFile).fname)
-        stdout << "Reading " << rep(indexedFile).fname << newline
         sx: Partial SExpression := read(file::TextReader)
         failed? sx => error "failed to read " + rep(indexedFile).fname
         posn := int retract sx
-        stdout << "Read position " << posn << newline
         setPosition!(file, machine posn)
         dict := read(file::TextReader)
         close! file
-        stdout << "read dictionary: " << dict << newline
 
         rep(indexedFile).values := [ (-(str first pair), valptr rest pair) for pair in retract dict]
 

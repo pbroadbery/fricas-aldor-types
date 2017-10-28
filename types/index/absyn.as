@@ -72,6 +72,8 @@ AbSynAny(T: PrimitiveType): AbSynCategory(T) with
         apply? ab1 => apply? ab2
                         and rep(ab1).struct.app.op = rep(ab1).struct.app.op
                         and rep(ab1).struct.app.args = rep(ab1).struct.app.args
+        literal? ab1 => literal? ab2 and literal ab1 = literal ab2
+        none? ab1 => none? ab2
         error("Odd AbSyn for equality")
 
     if T has SExpressionOutputType then
