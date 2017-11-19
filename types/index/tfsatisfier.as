@@ -6,6 +6,14 @@ inline from SpadTypeLib
 
 import from BooleanFold, List TForm
 
+SimpleTypeSystem: with
+    typeSystem: () -> TypeSystem
+== add
+    typeSystem(): TypeSystem ==
+        import from FnSatisfier
+        infer(ab: AnnotatedAbSyn): TForm == infer(satisfier$SimpleSatisfier::FnSatisfier, ab)$TypePackage
+        create(infer)$TypeSystem
+
 SimpleSatisfier: with
 --    apply: (%, TForm, TForm) -> Partial SatResult
     satisfier: (TForm, TForm) -> SatResult
@@ -15,6 +23,7 @@ SimpleSatisfier: with
 
     local allSatType(S: TForm, T: TForm): Partial SatResult ==
         import from TfType, TfMulti
+        stdout << "all sat type " << theType? T << " " << multi? S << newline
         not theType? T => failed
         multi? S => [failed()]
         [success()]

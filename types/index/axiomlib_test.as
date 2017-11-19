@@ -9,10 +9,14 @@ import from HashTable(Symbol, SExpression)
 import from Symbol, SExpression, LibAttribute
 
 basicEnv(): Env ==
-    import from TypePackage
+    import from TypePackage, ConstLibrary
     sat: FnSatisfier := (satisfier$SimpleSatisfier)::FnSatisfier
     envInferFn(ab: AnnotatedAbSyn): TForm == infer(sat, ab)
-    emptyEnv(envInferFn)
+    empty := emptyEnv(envInferFn)
+    basicEnv: BasicLibrary := basicLibrary(simpleTypeSystem(), empty)
+    newEnv(lookup constLibrary imports basicEnv, empty)
+
+local simpleTypeSystem(): TypeSystem == typeSystem()$SimpleTypeSystem
 
 local annotate(env: Env)(ab: AbSyn): AnnotatedAbSyn ==
     import from AbSynAnnotator
@@ -28,7 +32,6 @@ local simple1: HashTable(Symbol, SExpression) ==
                                                + "(T |Simple1|))")),
      (symbol libAttrOperationAlist, fromString "((|value| (($) 7 T CONST)))"),
      (symbol libAttrParents, fromString "()")
-     --(symbol modemaps, fromString "((|value| (*1 *1) (|isDomain| *1 (|Simple1|))))"),
      ]
 
 -- simple2: fn: % -> %
@@ -39,57 +42,197 @@ local simple2: HashTable(Symbol, SExpression) ==
      (symbol libAttrConstructorModemap, fromString("(((|Simple2|) (CATEGORY |domain| (SIGNATURE |plus| ($ $ $)))) (T |Simple2|))")),
      (symbol libAttrOperationAlist, fromString "((|plus| (($ $ $) 7)))"),
      (symbol libAttrParents, fromString "()")
-     --(symbol modemaps, fromString "((|value| (*1 *1) (|isDomain| *1 (|Simple1|))))"),
      ]
+
+-- csimple2: fn: % -> %
+local csimple3: HashTable(Symbol, SExpression) ==
+    [(symbol libAttrAbbreviation, fromString "CSIMPL3"),
+     (symbol libAttrConstructorForm, fromString "(|CSimple3|)"),
+     (symbol libAttrConstructorKind, fromString "category"),
+     (symbol libAttrConstructorModemap, fromString("(((|CSimple3|) (|Category|)) (T |CSimple3|))")),
+     (symbol libAttrOperationAlist, fromString "((|f| (($ $) 6)))"),
+     (symbol libAttrParents, fromString "()")
+     ]
+
+-- csimple9: fn: Int -> Union(%, "failed")
+local csimple9: HashTable(Symbol, SExpression) ==
+    [(symbol libAttrAbbreviation, fromString "CSIMPL9"),
+     (symbol libAttrConstructorForm, fromString "(|CSimple9|)"),
+     (symbol libAttrConstructorKind, fromString "category"),
+     (symbol libAttrConstructorModemap, fromString("(((|CSimple9|) (|Category|)) (T |CSimple9|))")),
+     (symbol libAttrOperationAlist, fromString "((|partial| (((|Union| $ _"failed_") (|Integer|)) 6)))"),
+     (symbol libAttrParents, fromString "()")
+     ]
+
+-- simple10: fn: Int -> Union(%, "failed")
+local simple10: HashTable(Symbol, SExpression) ==
+    [(symbol libAttrAbbreviation, fromString "SIMPL10"),
+     (symbol libAttrConstructorForm, fromString "(|Simple10|)"),
+     (symbol libAttrConstructorKind, fromString "package"),
+     (symbol libAttrConstructorModemap, fromString("(((|Simple10|) (CATEGORY |package| (SIGNATURE |variable| ((|Union| (|Integer|) _"failed_") (|Integer|))))) (T |Simple10|))")),
+     (symbol libAttrOperationAlist, fromString "((|partial| (((|Union| $ _"failed_") (|Integer|)) 6)))"),
+     (symbol libAttrParents, fromString "()")
+     ]
+
+-- csimple11: CSimple11(X: CSimple8): Category == CSimple4 with f: () -> ()
+local csimple11: HashTable(Symbol, SExpression) ==
+    [(symbol libAttrAbbreviation, fromString "CSMP11"),
+     (symbol libAttrConstructorForm, fromString "(|CSimple11|)"),
+     (symbol libAttrConstructorKind, fromString "category"),
+     (symbol libAttrConstructorModemap, fromString("(((|CSimple11| |#1|) (|Category|) (|CSimple3|)) (T |CSimple11|))")),
+     (symbol libAttrOperationAlist, fromString "((|f| (($ $) 6) (((|@Tuple|)) 6)))"),
+     (symbol libAttrParents, fromString "(((|CSimple9|) . T))")
+     ]
+
 
 
 local tfGeneral(e0: Env, s: String): TForm ==
     import from AbSyn
     ab: AnnotatedAbSyn := (annotate e0) parseSExpression fromString s
-    newSyntax ab
+    newSyntax(simpleTypeSystem(), ab)
 
 test0(): () ==
-    import from List HashTable(Symbol, SExpression)
-    import from List Export
+    import from List HashTable(Symbol, SExpression), List SymbolMeaning
     import from Assert TForm
     import from Partial TForm
-    import from Symbol, SExpression, AbSyn, Export
+    import from Symbol, SExpression, AbSyn, SymbolMeaning, TypePackage
 
     e0: Env := basicEnv()
-    lib: AxiomLibrary := newLibrary(e0, [simple1])
+    ts: TypeSystem := simpleTypeSystem()
+    lib: AxiomLibrary := newLibrary(ts, e0, [simple1])
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract tform(lib, -"Simple1")
-    tf2 := tfGeneral(e2, "$")
-    stdout << "Simple1: " << tf << newline
-    stdout << "Simple1: " << catExports tf << newline
-
-    stdout << "types " << tf2 << " lib " << type first catExports tf << newline
-    stdout << "types eq " << (tf2 = type first catExports tf) << newline
-    assertEquals(type first catExports tf, tf2)
+    tf2 := tfGeneral(e2, "%")
+    assertEquals(type first imports tf, tf2)
 
 test1(): () ==
-    import from List HashTable(Symbol, SExpression)
-    import from List Export
-    import from List TForm
+    import from List HashTable(Symbol, SExpression), List SymbolMeaning, List TForm
     import from Assert TForm
     import from Partial TForm
-    import from Symbol, SExpression, AbSyn, Export
+    import from Symbol, SExpression, AbSyn, SymbolMeaning, TypePackage
 
     e0: Env := basicEnv()
-    lib: AxiomLibrary := newLibrary(e0, [simple2])
+    ts: TypeSystem := simpleTypeSystem()
+
+    lib: AxiomLibrary := newLibrary(ts, e0, [simple2])
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract tform(lib, -"Simple2")
-    self := tfGeneral(e2, "$")
+    self := tfGeneral(e2, "%")
     tf2 := newMap(newMulti([self, self]), self)
-    stdout << "Simple1: " << tf << newline
-    stdout << "Simple1: " << catExports tf << newline
+    assertEquals(type first imports tf, tf2)
 
-    stdout << "types " << tf2 << " lib " << type first catExports tf << newline
-    stdout << "types eq " << (tf2 = type first catExports tf) << newline
-    assertEquals(type first catExports tf, tf2)
+test2(): () ==
+    import from List HashTable(Symbol, SExpression), List TForm, List SymbolMeaning
+    import from Assert Symbol, Assert TForm
+    import from AbSyn, Symbol
+    e0: Env := basicEnv()
+    ts: TypeSystem := simpleTypeSystem()
 
-test0()
-test1()
+    lib: AxiomLibrary := newLibrary(ts, e0, [simple2])
+    e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
+    ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "Simple2"
+    tf2: TForm := newSyntax(ts, ab)
+    plus: SymbolMeaning := first domImports tf2
+    self: TForm := tfGeneral(e2, "Simple2")
+    assertEquals(-"plus", name plus)
+    assertEquals(newMap(newMulti [self, self], self), type plus)
+
+test3(): () ==
+    import from List HashTable(Symbol, SExpression), List SymbolMeaning, List TForm
+    import from Partial TForm
+    import from Assert Symbol, Assert TForm
+    import from AbSyn, Symbol, TypePackage
+    e0: Env := basicEnv()
+    ts: TypeSystem := simpleTypeSystem()
+
+    lib: AxiomLibrary := newLibrary(ts, e0, [csimple3])
+    e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
+
+    ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "CSimple3"
+    tf: TForm := newSyntax(ts, ab)
+
+    stdout << "Type is: " << tf << newline
+    stdout << "imports: " << imps << newline where imps := imports tf
+    self: TForm := tfGeneral(e2, "%")
+    f: SymbolMeaning := first imports tf
+    assertEquals(-"f", name f)
+    assertEquals(newMap(self, self), type f)
+
+test9(): () ==
+    import from AbSyn, Symbol, TypePackage
+    import from Partial TForm
+    import from List HashTable(Symbol, SExpression)
+    import from List Export, List TForm, List SymbolMeaning
+    import from Assert Symbol, Assert TForm
+    e0: Env := basicEnv()
+    ts: TypeSystem := simpleTypeSystem()
+
+    lib: AxiomLibrary := newLibrary(ts, e0, [csimple9])
+    e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
+
+    ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "CSimple9"
+    tf: TForm := newSyntax(ts, ab)
+
+    stdout << "Type is: " << tf << newline
+    stdout << "catExports: " << imps << newline where imps := imports tf
+    self: TForm := tfGeneral(e2, "%")
+    integer: TForm := tfGeneral(e2, "Integer")
+    f: SymbolMeaning := first imports tf
+    assertEquals(-"partial", name f)
+    --assertEquals(newMap(self, self), type f)
+
+test10(): () ==
+    import from AbSyn, Symbol, TypePackage
+    import from Partial TForm
+    import from Assert Symbol, Assert TForm
+    import from List HashTable(Symbol, SExpression)
+    import from List Export, List TForm, List SymbolMeaning
+
+    e0: Env := basicEnv()
+    ts: TypeSystem := simpleTypeSystem()
+
+    lib: AxiomLibrary := newLibrary(ts, e0, [simple10])
+    e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
+
+    ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "Simple10"
+    tf: TForm := newSyntax(ts, ab)
+    cat: TForm := infer(e2, ab)
+
+    stdout << "Type is: " << tf << newline
+    stdout << "domExports: " << domExps << newline where domExps := imports(cat)$TypePackage
+    stdout << "Cat is: " << cat << newline
+    stdout << "catExports: " << catExps << newline where catExps := catExports cat
+    self: TForm := tfGeneral(e2, "%")
+    integer: TForm := tfGeneral(e2, "Integer")
+    f: Export := first catExports tf
+    assertEquals(-"partial", name f)
+    --assertEquals(newMap(self, self), type f)
+
+
+test11(): () ==
+    import from AbSyn, Symbol, TypePackage
+    import from Partial TForm
+    import from List HashTable(Symbol, SExpression)
+    import from List Export, List TForm, List SymbolMeaning
+    import from Assert Symbol, Assert TForm
+    e0: Env := basicEnv()
+    ts: TypeSystem := simpleTypeSystem()
+
+    lib: AxiomLibrary := newLibrary(ts, e0, [csimple11, csimple3, csimple9])
+    e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
+
+    tf: TForm := retract lookup(e2, -"CSimple11")
+    stdout << "TF 11 " << tf << newline
+
+
+--test0()
+--test1()
+--test2()
+--test3()
+--test9()
+--test10()
+
+test11()

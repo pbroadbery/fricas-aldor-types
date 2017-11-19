@@ -25,12 +25,13 @@ IndexedFile: with
 
     get(indexedFile: %, k: Symbol): SExpression ==
         import from List Symbol
-        import from File, SExpressionReader, SExpression, HashTable(String, ValPtr), Partial SExpression
+        import from File, SExpressionReader, SExpression, HashTable(String, ValPtr), Partial SExpression, Integer
         vp := rep(indexedFile).values.k
         vp case val => vp.val
         file := open(rep(indexedFile).fname)
         setPosition!(file, vp.posn)
         valsx := read(file::TextReader)
+        failed? valsx => error("Failed to read " + toString k)
         vp.val := retract valsx
         vp.val
 

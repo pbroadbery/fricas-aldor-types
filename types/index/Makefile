@@ -15,12 +15,13 @@ LOG_1 =
 X = $(DBG)
 
 LIB_NAME := SpadType
-ALDOR_FILES = deptable extobj ptrtype index absyn axiomlib tform tfsatisfier
-TEST_FILES = tform_test axiomlib_test tformaxiomlib_test
+ALDOR_FILES = deptable extobj ptrtype index absyn basiclib axiomlib tform tfsatisfier
+TEST_FILES = tform_test basiclib_test axiomlib_test tformaxiomlib_test
 
 absyn_deps = index extobj
 extobj_deps = deptable
-tform_deps = absyn
+tform_deps = absyn ptrtype
+basiclib_deps = tform
 axiomlib_deps = tform
 tfsatisfier_deps = tform
 tform_testaxiomlib_deps = tform axiomlib
