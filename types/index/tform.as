@@ -9,17 +9,19 @@ inline from SpadTypeLib
 TypeInfo: with
     PrimitiveType
     OutputType
-    typeInfo: (Symbol, TForm -> Boolean) -> %
+    typeInfo: (Symbol, category?: TForm -> Boolean, parents: TForm -> List Export) -> %
     id: % -> Symbol
     category?: (%, TForm) -> Boolean
+    directCatParents: (%, TForm) -> List Export
 == add
-    Rep == Record(id: Symbol, catfn: TForm -> Boolean)
+    Rep == Record(id: Symbol, catfn: TForm -> Boolean, parentfn: TForm -> List Export)
     import from Rep
 
-    typeInfo(id: Symbol, catfn: TForm -> Boolean): % == per [id, catfn]
+    typeInfo(id: Symbol, catfn: TForm -> Boolean, parentfn: TForm -> List Export): % == per [id, catfn, parentfn]
 
     id(inf: %): Symbol == rep(inf).id
     category?(inf: %, tf: TForm): Boolean == (rep(inf).catfn)(tf)
+    directCatParents(inf: %, tf: TForm): List Export == (rep(inf).parentfn)(tf)
 
     (a: %) = (b: %): Boolean == id a = id b
     (out: TextWriter) << (inf: %): TextWriter == out << id inf
@@ -50,14 +52,12 @@ TForm: OutputType with
     bind: (%, AnnotatedAbSyn) -> %
     boundSyntax: % -> AnnotatedAbSyn
 
-    catParents: % -> List %
-    domImports: % -> List SymbolMeaning
-
     subst: (%, AbSub) -> %
     inner: % -> AnyTForm
 
     typeInfo: % -> TypeInfo
     category?: % -> Boolean
+    directCatParents: % -> List Export
 == add
     UTF == Union(m: TfMap, gen: TfGeneral, type: TfType, catType: TfCatType,
                    declare: TfDeclare, cat: TfCategory, thd: TfThird, tfIf: TfIf, sig: TfSignature, multi: TfMulti)
@@ -66,9 +66,10 @@ TForm: OutputType with
     import from SymbolMeaning
 
     (tf1: %) = (tf2: %): Boolean ==
-        rep(tf1).ab = rep(tf2).ab and rep(tf1).inner = rep(tf2).inner
-
-    is?(tf: %, sym: Symbol): Boolean == id tf = sym
+        same?(tf1, tf2) => true
+        r := rep(tf1).ab = rep(tf2).ab and rep(tf1).inner = rep(tf2).inner
+        --stdout << "Equals: " << tf1 << " = " << tf2 << " --> " << r << newline
+        r
 
     hash(tf: %): MachineInteger == 0
 
@@ -95,13 +96,15 @@ TForm: OutputType with
 
     boundSyntax(tf: %): AnnotatedAbSyn == rep(tf).ab
 
-    catParents(tf: %): List % == catParents inner tf
-    domImports(tf: %): List SymbolMeaning == domImports inner tf
-
     -- from typeInfo
     category?(tf: %): Boolean ==
         import from TypeInfo
         category?(typeInfo tf, tf)
+
+    -- from typeInfo
+    directCatParents(tf: %): List Export ==
+        import from TypeInfo
+        directCatParents(typeInfo tf, tf)
 
     (out: TextWriter) << (tf: %): TextWriter ==
         none? boundSyntax tf => out << rep(tf).inner
@@ -112,6 +115,7 @@ TForm: OutputType with
     subst(tf: %, sigma: AbSub): % ==
         import from SubstitutionPackage, AnyTForm
         any := subst(anyForm tf, sigma)
+        stdout << "subst " << sigma << " " << tf << " " << per [rep(tf).ab, any] << newline
         per [subst(sigma, rep(tf).ab), any]
 
     anyForm(tf: TForm): AnyTForm == rep(tf).inner
@@ -136,9 +140,6 @@ AnyTForm: OutputType with
     id: % -> Symbol
     typeInfo: % -> TypeInfo
     toSubType: (X: TFormSubType, %) -> X
-    catParents: % -> List TForm
-
-    domImports: % -> List SymbolMeaning
 == add
     Rep == Record(c: Cross(T: TFormSubType, T))
 
@@ -167,14 +168,6 @@ AnyTForm: OutputType with
         subst1(T: TFormSubType, tf: T): % == anyTForm(T, subst(tf, sigma))
         subst1 unwrap anyTf
 
-    catParents(anyTf: %): List TForm ==
-        catParents1(T: TFormSubType, tf: T): List TForm == catParents tf
-        catParents1 unwrap anyTf
-
-    domImports(anyTf: %): List SymbolMeaning ==
-        domImports1(T: TFormSubType, tf: T): List SymbolMeaning == domImports tf
-        domImports1 unwrap anyTf
-
     (anyTf1: %) = (anyTf2: %): Boolean ==
         eq(T1: TFormSubType, tf1: T1)(T2: TFormSubType, tf2: T2): Boolean ==
             id$T1 = id$T2 and tf1 = (tf2 pretend T1)
@@ -191,16 +184,12 @@ TFormSubType: Category == OutputType with
     id: Symbol
     typeInfo: TypeInfo
     coerce: TForm -> %
-    catParents: % -> List TForm
-    domImports: % -> List SymbolMeaning
+
     default
         coerce(tf: TForm): % ==
             import from AnyTForm
             id tf ~= id => error("found a " + (toString id tf) + " expected " + (toString id)  + " type: " + (toString tf))
             toSubType(%, inner tf)
-
-        catParents(stf: %): List TForm == []
-        domImports(stf: %): List SymbolMeaning == error("domImports not implemented " + toString id)
 
         (tf1: %) = (tf2: %): Boolean ==
             import from Symbol
@@ -218,7 +207,7 @@ TfType: TFormSubType with
     id: Symbol == -"type"
     theType?(tf: TForm): Boolean == id$% = id tf
 
-    typeInfo: TypeInfo == typeInfo(id, (a: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id, (a: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
 
 TfCatType: TFormSubType with
     catType: () -> %
@@ -231,7 +220,7 @@ TfCatType: TFormSubType with
     subst(tf: %, sigma: AbSub): % == tf
     id: Symbol == -"categpry"
     catType?(tf: TForm): Boolean == id$% = id tf
-    typeInfo: TypeInfo == typeInfo(id, (a: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id, (a: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
 
 TfGeneral: TFormSubType with
     newTfGeneral: (TypeSystem, AnnotatedAbSyn) -> %
@@ -265,21 +254,14 @@ TfGeneral: TFormSubType with
         myType := type(tf::TfGeneral)
         third? myType or catType? myType
 
-    typeInfo: TypeInfo == typeInfo(id, typeIsThirdOrCategory?)
+    typeInfo: TypeInfo == typeInfo(id, typeIsThirdOrCategory?, (tf: TForm): List Export +-> parentExports(tf::%))
 
-    catParents(tf: %): List TForm ==
-        stdout << "catparents: gen " << tf << newline
+    parentExports(tf: %): List Export ==
         import from TfThird
-        myType: TForm := type tf
-        not third? myType => []
-        thdParents(myType::TfThird)
-
-    domImports(tf: %): List SymbolMeaning ==
-        import from SymbolMeaning, Export, TForm, TypePackage
-        catTf: TForm := type tf
-        sigma: AbSub := newSubst(-"%", syntax tf)
-        exports: List Export := catExports catTf
-        [newSymbolMeaning(name exp, subst(type exp, sigma)) for exp in exports]
+        myType: TForm := type(tf)
+        stdout << "tfGeneral parents " << id myType << " " << myType << newline
+        third? myType => thdParents(myType::TfThird)
+        []
 
 TfIf: TFormSubType with
     if?: TForm -> Boolean
@@ -293,22 +275,23 @@ TfIf: TFormSubType with
     id: Symbol == -"if"
     if?(tf: TForm): Boolean == id$% = id tf
 
-    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
 
     condition(tfIf: %): SExpression == rep(tfIf).cond
     value(tfIf: %): TForm == rep(tfIf).value
-    import from Rep
 
     newTfIf(cond: SExpression, val: TForm): % == per [cond, val]
     (out: TextWriter) << (tf: %): TextWriter == out << "{If " << condition tf  << "}"
     subst(tf: %, sigma: AbSub): % == newTfIf(condition tf, subst(value tf, sigma))
 
+    (tf1: %) = (tf2: %): Boolean == rep(tf1).value = rep(tf2).value
+
+
 TfThird: TFormSubType with
     cat: % -> TForm -- probably a category
     newTfThird: TForm -> %
     third?: TForm -> Boolean
-    thdExports: % -> List Export
-    thdParents: % -> List TForm
+    thdParents: % -> List Export
 == add
     Rep == TForm
     import from Rep
@@ -320,20 +303,15 @@ TfThird: TFormSubType with
     subst(tf: %, sigma: AbSub): % == newTfThird(subst(cat tf, sigma))
     (out: TextWriter) << (tf: %): TextWriter == out << "{thd " << rep tf << "}"
 
-    thdExports(tf: %): List Export ==
-        import from TypePackage
-        catExports rep tf
+    thdParents(tf: %): List Export ==
+        directCatParents rep tf
 
-    thdParents(tf: %): List TForm ==
-        stdout << "thdparents: " << id << " " << tf << newline
-        catParents rep tf
-
-    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
 
 TfCategory: TFormSubType with
-    parents: % -> List TForm
     newTfCategory: List TForm -> %
     categoryForm?: TForm -> Boolean
+    parentExports: % -> List Export
 == add
     Rep == Record(parents: List TForm)
     import from Rep, List TForm
@@ -343,16 +321,19 @@ TfCategory: TFormSubType with
     newTfCategory(parents: List TForm): % == per [parents]
     parents(cat: %): List TForm == rep(cat).parents
 
-    catParents(cat: %): List TForm == rep(cat).parents
-    catExports(cat: %): List Export == []
-
     (out: TextWriter) << (t: %): TextWriter == out << "{Cat " << parents(t) << "}"
 
     subst(tf: %, sigma: AbSub): % ==
         import from TForm
         newTfCategory([subst(part, sigma) for part in parents tf])
 
-    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> true)
+    typeInfo: TypeInfo == typeInfo(id,
+                                   (tf: TForm): Boolean +-> true,
+                                   (a: TForm): List Export +-> parentExports(a::%))
+
+    parentExports(tf: %): List Export ==
+        import from Export, SExpression
+        [newExport(-"%%", p, nil) for p in parents tf]
 
     (a: %) = (b: %): Boolean == never
 
@@ -363,7 +344,7 @@ TfSignature: TFormSubType with
     newTfSignature: (SymbolMeaning, SExpression) -> %
 == add
     Rep == Record(sym: SymbolMeaning, cond: SExpression)
-    import from Rep
+    import from Rep, SymbolMeaning
 
     id: Symbol == -"sig"
     signature?(tf: TForm): Boolean == id$% = id tf
@@ -376,7 +357,9 @@ TfSignature: TFormSubType with
 
     signature(tf: %): Export == newExport(name symbolMeaning tf, type symbolMeaning tf, rep(tf).cond)
 
-    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
+
+    (a: %) = (b: %): Boolean == symbolMeaning a = symbolMeaning b
 
 TfMap: TFormSubType with
     arg: % -> TForm
@@ -411,7 +394,7 @@ TfMap: TFormSubType with
 
     (out: TextWriter) << (t: %): TextWriter == out << "{" << args t << " -> " << ret t << "}"
 
-    typeInfo: TypeInfo == typeInfo(id$%, (tf: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id$%, (tf: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
 
 TfDeclare: TFormSubType with
     newTfDeclare: (Symbol, TForm) -> %
@@ -436,7 +419,7 @@ TfDeclare: TFormSubType with
     (out: TextWriter) << (t: %): TextWriter == out << "{" << sym t << ": " << type t << "}"
     subst(tf: %, sigma: AbSub): % == newTfDeclare(sym tf, subst(type tf, sigma))
 
-    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> (inner := type(tf::TfDeclare); category?(typeInfo inner, inner)))
+    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> (inner := type(tf::TfDeclare); category?(typeInfo inner, inner)), (a: TForm): List Export +-> [])
 
 TfMulti: TFormSubType with
     newTfMulti: List  TForm -> %
@@ -457,7 +440,7 @@ TfMulti: TFormSubType with
     (out: TextWriter) << (t: %): TextWriter == out << "{" << rep t << "}"
     subst(tf: %, sigma: AbSub): % == newTfMulti [subst(part, sigma) for part in rep tf]
 
-    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false)
+    typeInfo: TypeInfo == typeInfo(id, (tf: TForm): Boolean +-> false, (a: TForm): List Export +-> [])
 
 #if 0
 TfRecord: TFormSubType with
@@ -467,6 +450,7 @@ TfRecord: TFormSubType with
 #endif
 
 SymbolMeaning: OutputType with
+    PrimitiveType
     newSymbolMeaning: (Symbol, TForm) -> %
     name: % -> Symbol
     type: % -> TForm
@@ -484,7 +468,10 @@ SymbolMeaning: OutputType with
 
     (out: TextWriter) << (syme: %): TextWriter == out << "{S: " << name syme << "}"
 
+    (a: %) = (b: %): Boolean == name a = name b and type a = type b
+
 Export: OutputType with
+    PrimitiveType
     newExport: (Symbol, TForm, SExpression) -> %
     name: % -> Symbol
     type: % -> TForm
@@ -499,6 +486,8 @@ Export: OutputType with
     subst(e: %, sigma: AbSub): % == newExport(name e, subst(type e, sigma), rep(e).condition)
 
     (out: TextWriter) << (exp: %): TextWriter == out << "{S: " << name exp << " " << type exp << "}"
+
+    (a: %) = (b: %): Boolean == name a = name b and type a = type b
 
 AbSub: OutputType with
     emptySubst: () -> %
@@ -650,8 +639,7 @@ SatResult: SatResultCategory with
 
 TypePackage: with
     infer: (FnSatisfier, AnnotatedAbSyn) -> TForm
-    catExports: TForm -> List Export
-    allParents: TForm -> List TForm
+    allCatParents: TForm -> List Export
     imports: TForm -> List SymbolMeaning
 == add
 
@@ -697,52 +685,29 @@ TypePackage: with
         subst(retType, sigma)
 
     imports(tf: TForm): List SymbolMeaning ==
-        import from Symbol, Export
+        import from Symbol, Export, TfSignature
         import from List Export
         import from SymbolMeaning
         self: AnnotatedAbSyn := boundSyntax tf
+        none? self => error("can't find imports of unbound " + toString tf)
         sigma: AbSub := newSubst(-"%", self)
-        [newSymbolMeaning(name exp, subst(type exp, sigma)) for exp in catExports tf]
+        sigs := [signature(type(sig)::TfSignature) for sig in allCatParents tf | signature? type sig]
+        [newSymbolMeaning(name exp, subst(type exp, sigma)) for exp in sigs]
 
-    catExports(tf: TForm): List Export ==
-        import from AsPointer TForm
-        expand(tf: TForm, seen: HashSet AsPointer TForm): (List Export, List TForm) ==
-            import from TfSignature
-            myExports: List Export := if signature? tf then [signature(tf::TfSignature)] else []
-            (myExports, [child for child in catParents tf| not contains?(seen, toPointer child)])
-        toDo: List TForm := [tf]
-        seen: HashSet AsPointer TForm := [toPointer tf]
-        exports: List Export := []
-        while not empty? toDo repeat
-            (exps, more) := expand(first toDo, seen)
-            stdout << "Curr: " << first toDo << " more: " << more << newline
-            exports := append!(exps, exports)
-            insert!(seen, toPointer first toDo)
-            toDo := append!(more, rest toDo)
-        exports
-
-    allParents1(tf: TForm): List TForm ==
-        import from AsPointer TForm
-        expand(tf: TForm, seen: HashSet AsPointer TForm): List TForm ==
-            import from TfSignature
-            [child for child in catParents tf| not contains?(seen, toPointer child)]
-        toDo: List TForm := [tf]
-        seen: HashSet AsPointer TForm := [toPointer tf]
-        while not empty? toDo repeat
-            more := expand(first toDo, seen)
-            stdout << "Curr: " << first toDo << " more: " << more << newline
-            toDo := append!(more, rest toDo)
-        [fromPointer ptf for ptf in seen]
-
-    allParents(tf: TForm): List TForm ==
-        expand(tf: TForm, seen: HashSet TForm): List TForm ==
-            import from TfSignature
-            [child for child in catParents tf| not contains?(seen, child)]
+    allCatParents(tf: TForm): List Export ==
+        stdout << "Cat parents starts " << tf << newline
+        import from TForm, Export
+        expand(tf: TForm, seen: HashSet TForm): (List Export, List TForm) ==
+            parentExports := [child for child in directCatParents tf | not member?(type child, seen)]
+            myParents: List TForm := [type p for p in parentExports]
+            (parentExports, [child for child in myParents])
         toDo: List TForm := [tf]
         seen: HashSet TForm := []
+        exports: List Export := []
         while not empty? toDo repeat
             insert!(seen, first toDo)
-            more := expand(first toDo, seen)
-            stdout << "Curr: " << first toDo << " more: " << more << newline
+            (exps, more) := expand(first toDo, seen)
+            exports := append!(exps, exports)
             toDo := append!(more, rest toDo)
-        [xtf for xtf in seen]
+        stdout << "Cat parents done " << exports << newline
+        exports

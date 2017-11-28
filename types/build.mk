@@ -55,6 +55,13 @@ $(foreach l,$(ALDOR_FILES), $(eval $(call dep_template,$(l))))
 clean:
 	rm -f *.ao *.abn *.c *.fm *.al
 
+.PHONY: check $(addsuffix .exe-run, $(TEST_FILES))
+
+check: $(addsuffix .exe-run, $(TEST_FILES))
+
+$(addsuffix .exe-run, $(TEST_FILES)): %.exe-run: %.exe
+	./$*.exe
+
 # Used to extract file information
 idea:
 	echo run: $(addsuffix .run, $(ALDOR_FILES))

@@ -6,7 +6,10 @@ import from SpadTypeLib
 inline from SpadTypeLib
 
 import from HashTable(Symbol, SExpression)
-import from Symbol, SExpression, LibAttribute
+import from Symbol, SExpression, LibAttribute, TfSignature
+import from AbSyn, TypePackage
+import from List HashTable(Symbol, SExpression), List TForm, List SymbolMeaning, List Export
+import from Assert Symbol, Assert TForm
 
 basicEnv(): Env ==
     import from TypePackage, ConstLibrary
@@ -103,8 +106,10 @@ test0(): () ==
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract tform(lib, -"Simple1")
-    tf2 := tfGeneral(e2, "%")
-    assertEquals(type first imports tf, tf2)
+    tf2 := tfGeneral(e2, "(Simple1)")
+    ii := imports tf
+    stdout << "imports " << ii << newline
+    assertEquals(type first ii, tf2)
 
 test1(): () ==
     import from List HashTable(Symbol, SExpression), List SymbolMeaning, List TForm
@@ -119,14 +124,11 @@ test1(): () ==
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract tform(lib, -"Simple2")
-    self := tfGeneral(e2, "%")
+    self := tfGeneral(e2, "(Simple2)")
     tf2 := newMap(newMulti([self, self]), self)
     assertEquals(type first imports tf, tf2)
 
 test2(): () ==
-    import from List HashTable(Symbol, SExpression), List TForm, List SymbolMeaning
-    import from Assert Symbol, Assert TForm
-    import from AbSyn, Symbol
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
@@ -134,17 +136,14 @@ test2(): () ==
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "Simple2"
-    tf2: TForm := newSyntax(ts, ab)
-    plus: SymbolMeaning := first domImports tf2
-    self: TForm := tfGeneral(e2, "Simple2")
+    tf2: TForm := infer(e2, ab)
+    self: TForm := tfGeneral(e2, "(Simple2)")
+    stdout << "imports " << ii << newline where ii := imports tf2
+    plus: SymbolMeaning := first imports tf2
     assertEquals(-"plus", name plus)
     assertEquals(newMap(newMulti [self, self], self), type plus)
 
 test3(): () ==
-    import from List HashTable(Symbol, SExpression), List SymbolMeaning, List TForm
-    import from Partial TForm
-    import from Assert Symbol, Assert TForm
-    import from AbSyn, Symbol, TypePackage
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
@@ -155,11 +154,12 @@ test3(): () ==
     tf: TForm := newSyntax(ts, ab)
 
     stdout << "Type is: " << tf << newline
-    stdout << "imports: " << imps << newline where imps := imports tf
+    stdout << "parents: " << imps << newline where imps := directCatParents tf
     self: TForm := tfGeneral(e2, "%")
-    f: SymbolMeaning := first imports tf
+    f: Export := signature(type first([exp for exp in directCatParents tf | signature? type exp])::TfSignature)
     assertEquals(-"f", name f)
-    assertEquals(newMap(self, self), type f)
+    assertEquals(newMap([self], [self]), type f)
+
 
 test9(): () ==
     import from AbSyn, Symbol, TypePackage
@@ -204,10 +204,10 @@ test10(): () ==
     stdout << "Type is: " << tf << newline
     stdout << "domExports: " << domExps << newline where domExps := imports(cat)$TypePackage
     stdout << "Cat is: " << cat << newline
-    stdout << "catExports: " << catExps << newline where catExps := catExports cat
+    stdout << "catExports: " << catExps << newline where catExps := allCatParents cat
     self: TForm := tfGeneral(e2, "%")
     integer: TForm := tfGeneral(e2, "Integer")
-    f: Export := first catExports tf
+    f: Export := first allCatParents tf
     assertEquals(-"partial", name f)
     --assertEquals(newMap(self, self), type f)
 
@@ -228,10 +228,10 @@ test11(): () ==
     stdout << "TF 11 " << tf << newline
 
 
---test0()
---test1()
---test2()
---test3()
+test0()
+test1()
+test2()
+test3()
 --test9()
 --test10()
 

@@ -18,7 +18,7 @@ SimpleSatisfier: with
 --    apply: (%, TForm, TForm) -> Partial SatResult
     satisfier: (TForm, TForm) -> SatResult
 == add
-    import from SatResult
+    import from SatResult, TypePackage
     SatisfierRule ==> (TForm, TForm) -> Partial SatResult
 
     local allSatType(S: TForm, T: TForm): Partial SatResult ==
@@ -29,11 +29,13 @@ SimpleSatisfier: with
         [success()]
 
     local domainSat(S: TForm, T: TForm): Partial SatResult ==
+        import from List Export
         not isCategory? S => failed
         not isCategory? T => failed
+        true => [success()]
         stdout << "(DomainSat: " << S << " && " << T << newline
-        parentsS := catParents S
-        parentsT := catParents T
+        parentsS := allCatParents S
+        parentsT := allCatParents T
         stdout << "ParentS: " << parentsS << newline
         stdout << "ParentT: " << parentsT << newline
         res := if _and/(member?(parentT, parentsS) for parentT in parentsT) then [success()] else [failed()]

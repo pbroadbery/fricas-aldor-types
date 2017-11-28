@@ -5,6 +5,12 @@
 import from SpadTypeLib
 inline from SpadTypeLib
 
+import from AbSyn, SExpression, TForm, Symbol, Export
+import from String, TypePackage
+import from List Export, List SymbolMeaning
+import from Assert String
+import from BooleanFold
+
 basicTypeSystem(): TypeSystem == typeSystem()$SimpleTypeSystem
 
 emptyEnv(): Env ==
@@ -36,41 +42,31 @@ test0()
 
 
 test1(): () ==
-    import from AbSyn, SExpression, TForm, Symbol
-    import from String, TypePackage
-    import from List Export
-    import from Assert String
-
     env: Env := simpleEnv()
 
     lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := env lib
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "String"
-    integer := infer(e2, ab)
+    str := infer(e2, ab)
 
-    stdout << "inferred integer: " << integer << newline
-    stdout << "imports of List Integer: " << catExports integer << newline
+    stdout << "inferred integer: " << str << newline
+    stdout << "imports of List Integer: " << imports str << newline
 
     --error "Need some tests here"
 
 test2(): () ==
-    import from TypePackage, AbSyn, SExpression, TForm, Symbol
-    import from Assert String
-    import from List Export
-    env := simpleEnv()
+    env: Env := simpleEnv()
     ts: TypeSystem := basicTypeSystem()
     lib: AxiomLibrary := newLibrary(ts, env, "/home/pab/Work/fricas/build/src/algebra")
-    e2 := env lib
+    e2: Env := env lib
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "(List Integer)"
-    listInteger: TForm := newSyntax(ts, ab)
+    listInteger: TForm := infer(e2, ab)
 
-    stdout << "imports of List Integer: " << catExports listInteger << newline
+    stdout << "imports of List Integer: " << imports listInteger << newline
 
     --error "Need some tests here"
 
 test3(): () ==
-    import from AbSyn, SExpression, TForm, Symbol, Assert String
-    import from String, List Export, Symbol
     env: Env := simpleEnv()
     ts: TypeSystem := basicTypeSystem()
     lib: AxiomLibrary := newLibrary(ts, env, "/home/pab/Work/fricas/build/src/algebra")
@@ -108,15 +104,12 @@ testShowLibrary(): () ==
             imps: List SymbolMeaning := imports(tf)$TypePackage
             stdout << imps << newline
         else if third?(tf)$TfThird then
-            thds: List Export := thdExports(tf::TfThird)
+            thds: List Export := thdParents(tf::TfThird)
             stdout << thds << newline
         else
-            stdout << domImports tf << newline
+            stdout << imports tf << newline
 
 testTypeMap(): () ==
-    import from AbSyn, SExpression, TForm, Symbol, Assert String
-    import from String, List TForm
-
     env: Env := simpleEnv()
 
     lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
@@ -141,8 +134,27 @@ testParents1(): () ==
     stringType := infer(e2, ab)
 
     stdout << "inferred string: " << stringType << newline
+    stdout << "parents of String: " << directCatParents stringType << newline
 
-    stdout << "parents of String: " << allParents stringType << newline
+testParents2(): () ==
+    import from AbSyn, SExpression, TForm, Symbol, Assert String
+    import from String, TfThird, List TForm
+    import from TypePackage
+    import from Partial TForm
+    env: Env := simpleEnv()
+
+    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
+    e2: Env := env lib
+    stringCategory: TForm := retract lookup(e2, -"StringCategory")
+
+    openMath: TForm := newSyntax(basicTypeSystem(), (annotate e2) parseSExpression fromString "OpenMath")
+    stringAggregate: TForm := newSyntax(basicTypeSystem(), (annotate e2) parseSExpression fromString "StringAggregate")
+
+    pp := thdParents(stringCategory::TfThird)
+    stdout << "inferred string: " << stringCategory << newline
+    stdout << "parents of String: " << pp << newline
+    assertTrue( _or/ (openMath = type p for p in pp))
+    assertTrue( _or/ (stringAggregate = type p for p in pp))
 
 assertSatisfies(S: TForm, T: TForm): () ==
     import from GeneralAssert
@@ -163,4 +175,6 @@ test2()
 test3()
 testTypeMap()
 testParents1()
---testShowLibrary()
+testParents2()
+testShowLibrary()
+

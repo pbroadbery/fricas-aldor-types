@@ -149,8 +149,7 @@ AxiomSymbol: OutputType with
     local parents(sym: %): List TForm ==
         makeParent(sx: SExpression): TForm ==
             import from Symbol
-            lhs := first sx
-            cond := rest sx
+            (lhs, cond) := (first sx, rest sx)
             if nil? rest lhs then lhs := first lhs
             lhsTf: TForm := newSyntax(typeSystem sym, annotate(env sym, parseSExpression lhs))
             if sexpr(-"T") = cond then lhsTf
@@ -173,8 +172,12 @@ AxiomSymbol: OutputType with
         (cond, sx) := (safeFirst sx, safeRest sx)
         (const, sx) := (safeFirst sx, safeRest sx)
 
-        types := [newSyntax(typeSystem,  annotate(e, parseSExpression tsx)) for tsx in sigSx]
-        tf := if not nil? const then first types else newMap(newMulti(rest types), first types)
+        sxToType(argsx: SExpression): TForm == newSyntax(typeSystem,  annotate(e, parseSExpression argsx))
+        args(argsx: SExpression): TForm ==
+            stdout << "args are: " << argsx << newline
+            newMulti([sxToType part for part in argsx])
+
+        tf := if not nil? const then sxToType(first sigSx) else newMap(args(rest sigSx), sxToType(first sigSx))
 
         newSignature(name, tf, cond)
 
