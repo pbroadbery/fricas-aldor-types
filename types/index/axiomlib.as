@@ -192,12 +192,13 @@ AxiomSymbol: OutputType with
 AxiomLibrary: with
     newLibrary: (TypeSystem, Env, String) -> %
     newLibrary: (TypeSystem, Env, List(HashTable(Symbol, SExpression))) -> %
+    newLibrary: (TypeSystem, Env, String, List String) -> %
     env: % -> Env
     tform: (%, Symbol) -> Partial TForm
     typeSystem: % -> TypeSystem
     ids: % -> List Symbol
 == add
-    Rep == Record(p: String,
+    Rep == Record(path: String,
                   ts: TypeSystem,
                   env: Env,
                   files: HashTable(Symbol, AxiomSymbol))
@@ -223,7 +224,10 @@ AxiomLibrary: with
 
     local makeSymbol(lib: %, tbl: HashTable(Symbol, SExpression)): AxiomSymbol ==
         import from Symbol, SExpression, LibAttribute
-        idxFile: IndexedFile := newIndexedFile(name sym tbl.(symbol libAttrAbbreviation), tbl)
+        import from List Symbol
+        stdout << "Symbol is " << symbol libAttrAbbreviation << newline
+        stdout << "Keys are " << [k for (k, v) in tbl] << newline
+        idxFile: IndexedFile := new(name sym tbl.(symbol libAttrAbbreviation), tbl)
         newAxiomSymbol(idxFile, lib)
 
     newLibrary(ts: TypeSystem, e: Env, p: String): % ==
@@ -232,7 +236,20 @@ AxiomLibrary: with
         for fname in listDirectory p repeat
             stdout << "fname: " << fname << newline
             if extension(fname) = "NRLIB" then
-                theAxiomSymbol := newAxiomSymbol(newIndexedFile(fname::String + "/index.KAF"), rec)
+                theAxiomSymbol := newAxiomSymbol(new(fname::String + "/index.KAF"), rec)
+                rep(rec).files.(definedSymbol theAxiomSymbol) := theAxiomSymbol
+                stdout << "Defining " << definedSymbol theAxiomSymbol << " " << fname << newline
+        stdout << "Created library. Name: " << p << newline
+        rec
+
+    newLibrary(ts: TypeSystem, e: Env, p: String, paths: List String): % ==
+        import from Symbol
+        rec := per [p, ts, e, table()]
+        for path in paths repeat
+            stdout << "fname: " << fname << newline
+            fname: FileName := path::FileName
+            if extension(fname) = "NRLIB" then
+                theAxiomSymbol := newAxiomSymbol(new(fname::String + "/index.KAF"), rec)
                 rep(rec).files.(definedSymbol theAxiomSymbol) := theAxiomSymbol
                 stdout << "Defining " << definedSymbol theAxiomSymbol << " " << fname << newline
         stdout << "Created library. Name: " << p << newline
@@ -242,7 +259,7 @@ AxiomLibrary: with
         import from Partial AxiomSymbol
         r := find(sym, rep(lib).files)
         if failed? r then
-            stdout << "Failed to find " << sym << " in " << rep(lib).p << newline
+            stdout << "Failed to find " << sym << " in " << rep(lib).path << newline
         r
 
     tform(lib: %, sym: Symbol): Partial TForm ==

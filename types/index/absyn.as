@@ -24,6 +24,8 @@ BaseAbSynCategory: Category == Extensible with
     newApply: (%, List %) -> %
     applyOperator: % -> %
     applyArguments: % -> List %
+    applyArgCount: % -> MachineInteger
+    applyArgGet: (%, MachineInteger) -> %
 
     declare?: % -> Boolean
     declareType: % -> %
@@ -61,6 +63,8 @@ AbSynAny(T: PrimitiveType): AbSynCategory(T) with
     apply?(ab: %): Boolean == rep(ab).struct case app
     applyOperator(ab: %): % == rep(ab).struct.app.op
     applyArguments(ab: %): List % == rep(ab).struct.app.args
+    applyArgCount(ab: %): MachineInteger == # applyArguments ab
+    applyArgGet(ab: %, n: MachineInteger): % == (applyArguments ab).n
 
     id?(ab: %): Boolean == rep(ab).struct case id -- rep(ab) case id
     idSymbol(ab: %): T == rep(ab).struct.id -- rep(ab).id

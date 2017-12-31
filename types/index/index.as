@@ -3,20 +3,20 @@
 #pile
 
 IndexedFile: with
-    newIndexedFile: String -> %
+    new: String -> %
+    new: (String, HashTable(Symbol, SExpression)) -> %
     get: (%, Symbol) -> SExpression
     keys: % -> List Symbol
-    newIndexedFile: (String, HashTable(Symbol, SExpression)) -> %
 == add
     Rep == Record(fname: String, values: HashTable(Symbol, ValPtr))
     ValPtr == Union(posn: MachineInteger, val: SExpression)
 
     import from Rep, ValPtr, Integer
 
-    newIndexedFile(name: String, tbl: HashTable(Symbol, SExpression)): % ==
+    new(name: String, tbl: HashTable(Symbol, SExpression)): % ==
         per [name, [(key, [sx]) for (key, sx) in tbl]]
 
-    newIndexedFile(name: String): % ==
+    new(name: String): % ==
        file := per [name, table()]
        read file
        file
@@ -35,14 +35,17 @@ IndexedFile: with
         vp.val := retract valsx
         vp.val
 
-
     local read(indexedFile: %): () ==
         import from File, Symbol, SExpressionReader, SExpression, HashTable(Symbol, ValPtr)
 
         file := open(rep(indexedFile).fname)
         sx: Partial SExpression := read(file::TextReader)
-        failed? sx => error "failed to read " + rep(indexedFile).fname
+        failed? sx => error "failed to read position in " + rep(indexedFile).fname
+        close! file
+
         posn := int retract sx
+
+        file := open(rep(indexedFile).fname)
         setPosition!(file, machine posn)
         dict := read(file::TextReader)
         close! file
@@ -56,7 +59,7 @@ IndexedFile: with
 
 testIndex(): () ==
     import from Symbol, IndexedFile, SExpression
-    f := newIndexedFile("/home/pab/Work/fricas/build/src/algebra/A1AGG-.NRLIB/index.KAF")
+    f := new("/home/pab/Work/fricas/build/src/algebra/A1AGG-.NRLIB/index.KAF")
     stdout << get(f, -"abbreviation") << newline
 
 --testIndex()

@@ -1,5 +1,6 @@
+all: really-all
 
-all-ao: $(addsuffix .ao, $(ALDOR_FILES))
+all-ao:    $(addsuffix .ao, $(ALDOR_FILES))
 all-tests: $(addsuffix .ao, $(TEST_FILES))
 
 define rec_dep_template
@@ -40,11 +41,18 @@ $(addsuffix .run, $(ALDOR_FILES)): %.run: %.ao
 
 $(addsuffix .exe, $(ALDOR_FILES)): %.exe: %.ao
 	rm -f $@
-	$(ALDOR_$(X)) -laldor -lalgebra -fx=$@ -Zdb $< $(addsuffix .ao, $(call uniq_deps,$*))
+	$(ALDOR_$(X)) -laldor -lalgebra -fx=$@ $< $(addsuffix .ao, $(call uniq_deps,$*))
 
 $(addsuffix .exe, $(TEST_FILES)): %.exe: %.ao lib$(LIB_NAME).a
 	rm -f $@
-	$(ALDOR_$(X)) -fx=$@ -Zdb -l$(LIB_NAME) -lalgebra -laldor $*.ao
+	$(ALDOR_$(X)) -fx=$@ -l$(LIB_NAME) -lalgebra -laldor $*.ao
+
+$(patsubst %,java/aldorcode/%.java,$(ALDOR_FILES)): java/aldorcode/%.java: %.ao
+	mkdir -p java
+	(cd java; $(ALDOR_$(X)) -fjava ../$*.ao)
+
+.PHONY: java
+java: $(patsubst %,java/%.java,$(ALDOR_FILES))
 
 define dep_template
 $1.ao: $(addsuffix .ao,$($1_deps))
@@ -53,7 +61,8 @@ endef
 $(foreach l,$(ALDOR_FILES), $(eval $(call dep_template,$(l))))
 
 clean:
-	rm -f *.ao *.abn *.c *.fm *.al
+	rm -f *.ao *.abn *.c *.fm *.al *.o *.exe
+	rm -rf jars java
 
 .PHONY: check $(addsuffix .exe-run, $(TEST_FILES))
 
@@ -62,8 +71,33 @@ check: $(addsuffix .exe-run, $(TEST_FILES))
 $(addsuffix .exe-run, $(TEST_FILES)): %.exe-run: %.exe
 	./$*.exe
 
+.PHONY: classes
+classes: java/classes.build
+
+empty :=
+space := $(empty) $(empty)
+libnames := algebra aldor foam foamj
+
+CLASSPATH:= $(subst $(space),:,$(patsubst %,$(ALDOR_SDK)/share/lib/%.jar,$(libnames)))
+
+java/classes.build: $(patsubst %,java/aldorcode/%.java,$(ALDOR_FILES))
+	echo $(CLASSPATH)
+	(cd java; javac -cp $(CLASSPATH) $$(find . -name \*.java) )
+	touch java/classes.build
+
+jars/$(LIB_NAME).jar: java/classes.build
+	mkdir -p jars
+	(cd java; jar cf ../jars/$(LIB_NAME).jar .)
+
+$(patsubst %,jars/%.jar,$(libnames)): jars/%: $(ALDOR_SDK)/share/lib/%
+	mkdir -p jars
+	cp $(ALDOR_SDK)/share/lib/$* $@
+
+javadist: jars/$(LIB_NAME).jar $(patsubst %,jars/%.jar,$(libnames))
+
 # Used to extract file information
 idea:
 	echo run: $(addsuffix .run, $(ALDOR_FILES))
 	echo files: $(addsuffix .as, $(ALDOR_FILES))
 
+really-all: javadist
