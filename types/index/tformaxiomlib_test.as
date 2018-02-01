@@ -10,6 +10,7 @@ import from String, TypePackage
 import from List Export, List SymbolMeaning
 import from Assert String
 import from BooleanFold
+import from SymbolDatabase
 
 basicTypeSystem(): TypeSystem == typeSystem()$SimpleTypeSystem
 
@@ -32,6 +33,8 @@ local annotate(env: Env)(ab: AbSyn): AnnotatedAbSyn ==
     annotateSym(id: Symbol): AnnotatedId == newAnnotatedId(env, id)
     annotate(annotateSym, ab)
 
+local nrlibs(path: String): SymbolDatabase == never
+
 test0(): () ==
     import from Directory
     dd := listDirectory "/home/pab/Work/fricas/build/src/algebra"
@@ -44,7 +47,7 @@ test0()
 test1(): () ==
     env: Env := simpleEnv()
 
-    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := env lib
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "String"
     str := infer(e2, ab)
@@ -57,7 +60,7 @@ test1(): () ==
 test2(): () ==
     env: Env := simpleEnv()
     ts: TypeSystem := basicTypeSystem()
-    lib: AxiomLibrary := newLibrary(ts, env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(ts, env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := env lib
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "(List Integer)"
     listInteger: TForm := infer(e2, ab)
@@ -69,7 +72,7 @@ test2(): () ==
 test3(): () ==
     env: Env := simpleEnv()
     ts: TypeSystem := basicTypeSystem()
-    lib: AxiomLibrary := newLibrary(ts, env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(ts, env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), env)
 
     aa: Partial TForm := lookup(e2, -"String")
@@ -92,7 +95,7 @@ testShowLibrary(): () ==
     import from Symbol, TfMap, TypeInfo, TfThird
     env: Env := simpleEnv()
     ts: TypeSystem := basicTypeSystem()
-    lib: AxiomLibrary := newLibrary(ts, env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(ts, env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), env)
 
     for id in ids lib repeat
@@ -112,7 +115,7 @@ testShowLibrary(): () ==
 testTypeMap(): () ==
     env: Env := simpleEnv()
 
-    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := env lib
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "ListAggregate"
     aggType := infer(e2, ab)
@@ -128,7 +131,7 @@ testParents1(): () ==
     import from TypePackage
     env: Env := simpleEnv()
 
-    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := env lib
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "String"
     stringType := infer(e2, ab)
@@ -143,7 +146,7 @@ testParents2(): () ==
     import from Partial TForm
     env: Env := simpleEnv()
 
-    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, "/home/pab/Work/fricas/build/src/algebra")
+    lib: AxiomLibrary := newLibrary(basicTypeSystem(), env, nrlibs "/home/pab/Work/fricas/build/src/algebra")
     e2: Env := env lib
     stringCategory: TForm := retract lookup(e2, -"StringCategory")
 
@@ -177,4 +180,3 @@ testTypeMap()
 testParents1()
 testParents2()
 testShowLibrary()
-

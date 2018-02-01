@@ -17,6 +17,7 @@ SimpleTypeSystem: with
 SimpleSatisfier: with
 --    apply: (%, TForm, TForm) -> Partial SatResult
     satisfier: (TForm, TForm) -> SatResult
+    satisfiesDomain?: TForm -> Boolean
 == add
     import from SatResult, TypePackage
     SatisfierRule ==> (TForm, TForm) -> Partial SatResult
@@ -99,3 +100,8 @@ SimpleSatisfier: with
         r := satisfierX(S, T)
         stdout << " Sat: " << r << ")" << newline
         r
+
+    satisfiesDomain?(S: TForm): Boolean ==
+        import from TfGeneral
+        not general? S => false
+        category?(type(S::TfGeneral))

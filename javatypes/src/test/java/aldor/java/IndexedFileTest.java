@@ -27,7 +27,7 @@ public class IndexedFileTest {
     @Test
     public void testOne() {
         IndexedFile file = new IndexedFile(directory.path() + "/LIST.NRLIB/index.KAF");
-        SExpression sx = file.get(Symbol._MINUS_("abbreviation"));
+        SExpression sx = file.get(Symbol._MINUS_("abbreviation"), 1);
         System.out.println("SX: " + sx.sym().name());
     }
 }

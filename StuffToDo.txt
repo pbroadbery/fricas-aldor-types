@@ -1,0 +1,35 @@
+AXIOM
+-----
+
+Get direct parent exports from a category (done)
+    - Categories
+    - Signatures
+
+Conditionals
+    - Parse and be able to test
+
+Documentation
+    - Load documentation for a domain/type
+
+Integrate hierarchy browser with typelib
+    - build stuff [Add modules to other project - hopefully they can be shared...]
+    - Rebuild library on file change
+    - (done) Mapping AnnotatedAbSyn to Syntax (and back)
+    - (done) Single-Threading all calls to interface
+
+ALDOR
+-----
+
+- Mark errors in files
+- Ctrl-B on operations should work on compile failure
+- (done) Parsing of FileName & FileNameCategory - currently fails
+
+- Dealing with makefiles better (maybe bite bullet, and have it generated/tracked)
+- Test framework of some kind
+
+Both
+----
+
+- Name completions
+    - locals, "obviously imported types", types
+    - functions (from currently visible types [ie. imports/declarations]

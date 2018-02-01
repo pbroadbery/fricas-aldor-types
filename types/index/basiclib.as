@@ -35,18 +35,18 @@ BasicLibrary: with
     local type(ts, thisEnv): TForm == Type$TForm
 
     local tuple(ts, thisEnv): TForm ==
-       lhs: TForm := newDeclare(-"#1", Type$TForm)
-       rhs: TForm := bind(newCategory [], annotate(thisEnv, parseSExpression fromString "(Tuple #1)"))
+       lhs: TForm := newDeclare(-"|#1|", Type$TForm)
+       rhs: TForm := bind(newCategory [], annotate(thisEnv, parseSExpression fromString "(Tuple |#1|)"))
        newMap(lhs, rhs)
 
     local record(ts, thisEnv): TForm ==
        lhs: TForm := newDeclare(-"#1", newSyntax(ts, annotate(thisEnv, parseSExpression fromString "Tuple Type")))
-       rhs: TForm := bind(newCategory [], annotate(thisEnv, parseSExpression fromString "(Record #1)"))
+       rhs: TForm := bind(newCategory [], annotate(thisEnv, parseSExpression fromString "(Record |#1|)"))
        newMap(lhs, rhs)
 
     local cross(ts, thisEnv): TForm ==
        lhs: TForm := newDeclare(-"#1", newSyntax(ts, annotate(thisEnv, parseSExpression fromString "Tuple Type")))
-       rhs: TForm := bind(newCategory [], annotate(thisEnv, parseSExpression fromString "(Cross #1)"))
+       rhs: TForm := bind(newCategory [], annotate(thisEnv, parseSExpression fromString "(Cross |#1|)"))
        newMap(lhs, rhs)
 
     basicLibrary(ts: TypeSystem, parentEnv: Env): % ==

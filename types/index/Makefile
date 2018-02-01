@@ -16,7 +16,11 @@ X = $(DBG)
 
 LIB_NAME := SpadType
 ALDOR_FILES = java_string deptable extobj ptrtype index absyn basiclib axiomlib_reader axiomlib tform tfsatisfier axiomshell
-TEST_FILES = tform_test basiclib_test axiomlib_test tformaxiomlib_test
+TEST_FILES = index_test tform_test basiclib_test axiomlib_test tformaxiomlib_test axiomlib_reader_test daase_test
+
+JAVA_FILES := java_string axiomshell axiomlib_reader
+
+NONJAVA_TESTS := tformaxiomlib_test
 
 absyn_deps = index extobj
 extobj_deps = deptable
@@ -25,11 +29,11 @@ basiclib_deps = tform
 axiomlib_deps = tform
 tfsatisfier_deps = tform
 tform_testaxiomlib_deps = tform axiomlib
-axiomshell_deps := tfsatisfier axiomlib java_string axiomlib_reader
+axiomshell_deps := tfsatisfier axiomlib java_string axiomlib_reader java_string
 axiomlib_reader_deps := java_string index
+export_deps := $(axiomshell_deps)
 
 #LOG_FLAGS = -WD+inline -WD+inlExpr -WD+inlCall -WD+inlUnit -WD+emerge -WD+optf
 #OPT_FLAGS := -Q9 -Qinline-all
-OPT_FLAGS := -Cargs=-g -Jpackage=aldor.spadshell
-
+OPT_FLAGS := -Cargs=-g
 include ../build.mk

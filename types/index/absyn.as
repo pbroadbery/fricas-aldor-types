@@ -27,6 +27,12 @@ BaseAbSynCategory: Category == Extensible with
     applyArgCount: % -> MachineInteger
     applyArgGet: (%, MachineInteger) -> %
 
+    comma?: % -> Boolean
+    newComma: List % -> %
+    commaArguments: % -> List %
+    commaArgCount: % -> MachineInteger
+    commaArgGet: (%, MachineInteger) -> %
+
     declare?: % -> Boolean
     declareType: % -> %
 
@@ -45,48 +51,57 @@ AbSynCategory(T: PrimitiveType): Category == BaseAbSynCategory with
     newId: T -> %
     newDeclare: (T, %) -> %
     declareId: % -> T
+    principalOperator: % -> T
+
     if T has SExpressionOutputType then SExpressionOutputType
 
 AbSynAny(T: PrimitiveType): AbSynCategory(T) with
 == add
     Application == Record(op: %, args: List %)
     Declare == Record(id: T, type: %)
+    Comma == List %
     Lit == String
-    Struct == Union(id: T, declare: Declare, app: Application, lit: Lit, none: Cross())
+    Struct == Union(id: T, declare: Declare, app: Application, comma: Comma, lit: Lit, none: Cross())
     Rep == Record(fields: Fields %, struct: Struct)
     import from Rep, Application, Fields %, Declare
-
-    newId(s: T): % == per [newFields(), [s]]
-    newApply(op: %, args: List %): % == per [newFields(), [[op, args]]]
-    newNone(): % == per [newFields(), [()@Cross()]]
 
     apply?(ab: %): Boolean == rep(ab).struct case app
     applyOperator(ab: %): % == rep(ab).struct.app.op
     applyArguments(ab: %): List % == rep(ab).struct.app.args
     applyArgCount(ab: %): MachineInteger == # applyArguments ab
-    applyArgGet(ab: %, n: MachineInteger): % == (applyArguments ab).n
-
-    id?(ab: %): Boolean == rep(ab).struct case id -- rep(ab) case id
-    idSymbol(ab: %): T == rep(ab).struct.id -- rep(ab).id
+    applyArgGet(ab: %, n: MachineInteger): % == (applyArguments ab).(n+1)
+    newApply(op: %, args: List %): % == per [newFields(), [[op, args]]]
 
     declare?(ab: %): Boolean == rep(ab).struct case declare
     newDeclare(id: T, type: %): % == per [newFields(), [[id, type]]]
     declareId(ab: %): T == rep(ab).struct.declare.id
     declareType(ab: %): % == rep(ab).struct.declare.type
 
+    comma?(ab: %): Boolean == rep(ab).struct case comma
+    newComma(l: List %): % == per [newFields(), [l]]
+    commaArguments(ab: %): List % == rep(ab).struct.comma
+    commaArgCount(ab: %): MachineInteger == # commaArguments ab
+    commaArgGet(ab: %, n: MachineInteger): % == (commaArguments ab).(n+1)
+
+    id?(ab: %): Boolean == rep(ab).struct case id -- rep(ab) case id
+    newId(s: T): % == per [newFields(), [s]]
+    idSymbol(ab: %): T == rep(ab).struct.id -- rep(ab).id
+
     newLiteral(s: String): % == per [newFields(), [s]]
     literal?(ab: %): Boolean == rep(ab).struct case lit
     literal(ab: %): String == rep(ab).struct.lit
 
     none?(ab: %): Boolean == rep(ab).struct case none
+    newNone(): % == per [newFields(), [()@Cross()]]
 
     fields(ab: %): Fields % == rep(ab).fields
 
     (ab1: %) = (ab2: %): Boolean ==
         id? ab1 => id? ab2 and idSymbol ab1 = idSymbol ab2
         apply? ab1 => apply? ab2
-                        and rep(ab1).struct.app.op = rep(ab1).struct.app.op
-                        and rep(ab1).struct.app.args = rep(ab1).struct.app.args
+                        and rep(ab1).struct.app.op = rep(ab2).struct.app.op
+                        and rep(ab1).struct.app.args = rep(ab2).struct.app.args
+        comma? ab1 => rep(ab1).struct.comma = rep(ab2).struct.comma
         literal? ab1 => literal? ab2 and literal ab1 = literal ab2
         declare? ab1 => declare? ab2 and declareId ab1 = declareId ab2 and declareType ab1 = declareType ab2
         none? ab1 => none? ab2
@@ -101,7 +116,14 @@ AbSynAny(T: PrimitiveType): AbSynCategory(T) with
             none? ab => nil
             literal? ab => sexpr literal ab
             declare? ab => [sexpr(-"Declare"), sexpression declareId ab, sexpression declareType ab]
+            comma? ab => [sexpression part for part in commaArguments ab]
             error("odd absyn")
+
+    principalOperator(ab: %): T ==
+        apply? ab => principalOperator applyOperator ab
+        id? ab => idSymbol ab
+        never
+
 
 AbSyn: AbSynCategory Symbol with
     SExpressionInputType
@@ -129,6 +151,7 @@ AbSynParser: with
         import from Symbol
         opSx := first sx
         opSx = sexpr(-":") => parseDeclare sx
+        opSx = sexpr(-",") => parseComma sx
         parseApply sx
 
     local parseApply(sx: SExpression): AbSyn ==
@@ -136,6 +159,10 @@ AbSynParser: with
         op: AbSyn := parse(first sx)
         args := [parse elt for elt in rest sx]
         newApply(op, args)
+
+    local parseComma(sx: SExpression): AbSyn ==
+        import from List AbSyn
+        newComma [parse elt for elt in sx]
 
     local parseDeclare(sx: SExpression): AbSyn ==
         sx := rest sx
@@ -150,10 +177,22 @@ AbSynParser: with
         int? sx => newLiteral toString int sx
         error("Parsing " + (toString sx))
 
-AbSynUtils: with
-    principalOperator: AbSyn -> Symbol
+AbSynOperations(Ab: BaseAbSynCategory): with
+    map: ((Ab, Ab -> Ab) -> Ab) -> Ab -> Ab
 == add
-    principalOperator(ab: AbSyn): Symbol ==
-        apply? ab => principalOperator applyOperator ab
-        id? ab => idSymbol ab
-        never
+    import from List Ab
+    map(f: (Ab, Ab -> Ab) -> Ab): Ab -> Ab ==
+        local recurse(abi: Ab): Ab ==
+            id? abi => f(abi, recurse)
+            apply? abi =>
+                op := f(applyOperator abi, recurse)
+                args := [f(arg, recurse) for arg in applyArguments abi]
+                newApply(op, args)
+            abi
+        (ab: Ab): Ab +-> f(ab, recurse)
+
+#if 0
+fixApply(ab: AnnotatedAbSyn, recurse: AnnotatedAbSyn -> AnnotatedAbSyn): AnnotatedAbSyn ==
+    apply? ab and stuff() => applyOperator(ab)
+    recurse(ab)
+#endif

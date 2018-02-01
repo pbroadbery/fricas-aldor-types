@@ -5,16 +5,17 @@
 IndexedFile: with
     new: String -> %
     new: (String, HashTable(Symbol, SExpression)) -> %
-    get: (%, Symbol) -> SExpression
+    get: (%, Symbol, MachineInteger) -> SExpression
     keys: % -> List Symbol
 == add
-    Rep == Record(fname: String, values: HashTable(Symbol, ValPtr))
+    Rep == Record(fname: String, values: HashTable(Symbol, Array ValPtr))
     ValPtr == Union(posn: MachineInteger, val: SExpression)
 
     import from Rep, ValPtr, Integer
+    import from Array ValPtr
 
     new(name: String, tbl: HashTable(Symbol, SExpression)): % ==
-        per [name, [(key, [sx]) for (key, sx) in tbl]]
+        per [name, [(key, [[sx] for sx in sxl]) for (key, sxl) in tbl]]
 
     new(name: String): % ==
        file := per [name, table()]
@@ -23,10 +24,10 @@ IndexedFile: with
 
     keys(file: %): List Symbol == [keys rep(file).values]
 
-    get(indexedFile: %, k: Symbol): SExpression ==
+    get(indexedFile: %, k: Symbol, n: MachineInteger): SExpression ==
         import from List Symbol
         import from File, SExpressionReader, SExpression, HashTable(String, ValPtr), Partial SExpression, Integer
-        vp := rep(indexedFile).values.k
+        vp := rep(indexedFile).values.k.n
         vp case val => vp.val
         file := open(rep(indexedFile).fname)
         setPosition!(file, vp.posn)
@@ -42,24 +43,17 @@ IndexedFile: with
         sx: Partial SExpression := read(file::TextReader)
         failed? sx => error "failed to read position in " + rep(indexedFile).fname
         close! file
-
-        posn := int retract sx
+        posnOrPosnTimePair := retract sx
+        posn := if cons? posnOrPosnTimePair then int first posnOrPosnTimePair else int posnOrPosnTimePair
 
         file := open(rep(indexedFile).fname)
         setPosition!(file, machine posn)
         dict := read(file::TextReader)
+
+        rep(indexedFile).values := [ (if sym? first pair then sym first pair else -(str first pair), valptrs rest pair)
+                                        for pair in retract dict]
         close! file
 
-        rep(indexedFile).values := [ (-(str first pair), valptr rest pair) for pair in retract dict]
+    local valptrs(sx: SExpression): Array ValPtr ==
+        [(if int? sxc then [machine int sxc] else [sxc]) for sxc in sx]
 
-    local valptr(sx: SExpression): ValPtr ==
-        i0 := first sx
-        i1 := first rest sx
-        if not int? i1 then [i1] else [machine int i1]
-
-testIndex(): () ==
-    import from Symbol, IndexedFile, SExpression
-    f := new("/home/pab/Work/fricas/build/src/algebra/A1AGG-.NRLIB/index.KAF")
-    stdout << get(f, -"abbreviation") << newline
-
---testIndex()

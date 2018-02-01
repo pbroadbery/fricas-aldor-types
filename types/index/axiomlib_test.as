@@ -7,7 +7,7 @@ inline from SpadTypeLib
 
 import from HashTable(Symbol, SExpression)
 import from Symbol, SExpression, LibAttribute, TfSignature
-import from AbSyn, TypePackage
+import from AbSyn, TypePackage, SymbolDatabase
 import from List HashTable(Symbol, SExpression), List TForm, List SymbolMeaning, List Export
 import from Assert Symbol, Assert TForm
 
@@ -26,11 +26,15 @@ local annotate(env: Env)(ab: AbSyn): AnnotatedAbSyn ==
     annotateSym(id: Symbol): AnnotatedId == newAnnotatedId(env, id)
     annotate(annotateSym, ab)
 
+local preprocess(tbl: HashTable(Symbol, SExpression)): HashTable(Symbol, SExpression) ==
+    [(k, [nil, sx]) for (k, sx) in tbl]
+
 -- simple1: value: %
 local simple1: HashTable(Symbol, SExpression) ==
-    [(symbol libAttrAbbreviation, fromString "SIMPL1"),
+    preprocess [(symbol libAttrAbbreviation, fromString "SIMPL1"),
      (symbol libAttrConstructorForm, fromString "(|Simple1|)"),
      (symbol libAttrConstructorKind, fromString "domain"),
+     (symbol libAttrConstructorCategory, fromString "(CATEGORY |domain| (SIGNATURE |value| ($) |constant|))"),
      (symbol libAttrConstructorModemap, fromString("(((|Simple1|) (CATEGORY |domain| (SIGNATURE |value| ($) |constant|)))"
                                                + "(T |Simple1|))")),
      (symbol libAttrOperationAlist, fromString "((|value| (($) 7 T CONST)))"),
@@ -39,9 +43,10 @@ local simple1: HashTable(Symbol, SExpression) ==
 
 -- simple2: fn: % -> %
 local simple2: HashTable(Symbol, SExpression) ==
-    [(symbol libAttrAbbreviation, fromString "SIMPL2"),
+    preprocess [(symbol libAttrAbbreviation, fromString "SIMPL2"),
      (symbol libAttrConstructorForm, fromString "(|Simple2|)"),
      (symbol libAttrConstructorKind, fromString "domain"),
+     (symbol libAttrConstructorCategory, fromString "(CATEGORY |domain| (SIGNATURE |plus| ($ $ $)))"),
      (symbol libAttrConstructorModemap, fromString("(((|Simple2|) (CATEGORY |domain| (SIGNATURE |plus| ($ $ $)))) (T |Simple2|))")),
      (symbol libAttrOperationAlist, fromString "((|plus| (($ $ $) 7)))"),
      (symbol libAttrParents, fromString "()")
@@ -49,9 +54,10 @@ local simple2: HashTable(Symbol, SExpression) ==
 
 -- csimple2: fn: % -> %
 local csimple3: HashTable(Symbol, SExpression) ==
-    [(symbol libAttrAbbreviation, fromString "CSIMPL3"),
+    preprocess [(symbol libAttrAbbreviation, fromString "CSIMPL3"),
      (symbol libAttrConstructorForm, fromString "(|CSimple3|)"),
      (symbol libAttrConstructorKind, fromString "category"),
+     (symbol libAttrConstructorCategory, fromString "(|Join| (CATEGORY |domain| (SIGNATURE |f| ($ $))))"),
      (symbol libAttrConstructorModemap, fromString("(((|CSimple3|) (|Category|)) (T |CSimple3|))")),
      (symbol libAttrOperationAlist, fromString "((|f| (($ $) 6)))"),
      (symbol libAttrParents, fromString "()")
@@ -59,9 +65,10 @@ local csimple3: HashTable(Symbol, SExpression) ==
 
 -- csimple9: fn: Int -> Union(%, "failed")
 local csimple9: HashTable(Symbol, SExpression) ==
-    [(symbol libAttrAbbreviation, fromString "CSIMPL9"),
+    preprocess [(symbol libAttrAbbreviation, fromString "CSIMPL9"),
      (symbol libAttrConstructorForm, fromString "(|CSimple9|)"),
      (symbol libAttrConstructorKind, fromString "category"),
+     (symbol libAttrConstructorCategory, fromString "(|Join| (CATEGORY |package| (SIGNATURE |variable| ((|Union| (|Integer|) _"failed_") (|Integer|))))) "),
      (symbol libAttrConstructorModemap, fromString("(((|CSimple9|) (|Category|)) (T |CSimple9|))")),
      (symbol libAttrOperationAlist, fromString "((|partial| (((|Union| $ _"failed_") (|Integer|)) 6)))"),
      (symbol libAttrParents, fromString "()")
@@ -69,9 +76,10 @@ local csimple9: HashTable(Symbol, SExpression) ==
 
 -- simple10: fn: Int -> Union(%, "failed")
 local simple10: HashTable(Symbol, SExpression) ==
-    [(symbol libAttrAbbreviation, fromString "SIMPL10"),
+    preprocess [(symbol libAttrAbbreviation, fromString "SIMPL10"),
      (symbol libAttrConstructorForm, fromString "(|Simple10|)"),
      (symbol libAttrConstructorKind, fromString "package"),
+     (symbol libAttrConstructorCategory, fromString "(CATEGORY |package| (SIGNATURE |variable| ((|Union| (|Integer|) _"failed_") (|Integer|))))"),
      (symbol libAttrConstructorModemap, fromString("(((|Simple10|) (CATEGORY |package| (SIGNATURE |variable| ((|Union| (|Integer|) _"failed_") (|Integer|))))) (T |Simple10|))")),
      (symbol libAttrOperationAlist, fromString "((|partial| (((|Union| $ _"failed_") (|Integer|)) 6)))"),
      (symbol libAttrParents, fromString "()")
@@ -79,15 +87,14 @@ local simple10: HashTable(Symbol, SExpression) ==
 
 -- csimple11: CSimple11(X: CSimple8): Category == CSimple4 with f: () -> ()
 local csimple11: HashTable(Symbol, SExpression) ==
-    [(symbol libAttrAbbreviation, fromString "CSMP11"),
+    preprocess [(symbol libAttrAbbreviation, fromString "CSMP11"),
      (symbol libAttrConstructorForm, fromString "(|CSimple11|)"),
      (symbol libAttrConstructorKind, fromString "category"),
+     (symbol libAttrConstructorCategory, fromString "(|Join| (CATEGORY |domain| (|CSimple3|) (SIGNATURE |f| ($ $))))"),
      (symbol libAttrConstructorModemap, fromString("(((|CSimple11| |#1|) (|Category|) (|CSimple3|)) (T |CSimple11|))")),
      (symbol libAttrOperationAlist, fromString "((|f| (($ $) 6) (((|@Tuple|)) 6)))"),
      (symbol libAttrParents, fromString "(((|CSimple9|) . T))")
      ]
-
-
 
 local tfGeneral(e0: Env, s: String): TForm ==
     import from AbSyn
@@ -102,37 +109,39 @@ test0(): () ==
 
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
-    lib: AxiomLibrary := newLibrary(ts, e0, [simple1])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test0", [simple1]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract tform(lib, -"Simple1")
     tf2 := tfGeneral(e2, "(Simple1)")
     ii := imports tf
     stdout << "imports " << ii << newline
-    assertEquals(type first ii, tf2)
+    assertEquals(tf2, type first ii)
 
 test1(): () ==
     import from List HashTable(Symbol, SExpression), List SymbolMeaning, List TForm
     import from Assert TForm
     import from Partial TForm
-    import from Symbol, SExpression, AbSyn, SymbolMeaning, TypePackage
+    import from Symbol, SExpression, AbSyn, SymbolMeaning, TypePackage, Symbol
 
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
-    lib: AxiomLibrary := newLibrary(ts, e0, [simple2])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test1", [simple2]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract tform(lib, -"Simple2")
     self := tfGeneral(e2, "(Simple2)")
     tf2 := newMap(newMulti([self, self]), self)
+    stdout << "First import: " << sexpression type first imports tf << newline
+    stdout << "Expect: " << sexpression tf2 << newline
     assertEquals(type first imports tf, tf2)
 
 test2(): () ==
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
-    lib: AxiomLibrary := newLibrary(ts, e0, [simple2])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test2", [simple2]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "Simple2"
@@ -147,7 +156,7 @@ test3(): () ==
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
-    lib: AxiomLibrary := newLibrary(ts, e0, [csimple3])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test3", [csimple3]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "CSimple3"
@@ -170,7 +179,7 @@ test9(): () ==
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
-    lib: AxiomLibrary := newLibrary(ts, e0, [csimple9])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test9", [csimple9]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "CSimple9"
@@ -194,7 +203,7 @@ test10(): () ==
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
-    lib: AxiomLibrary := newLibrary(ts, e0, [simple10])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test10", [simple10]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     ab: AnnotatedAbSyn := (annotate e2) parseSExpression fromString "Simple10"
@@ -221,7 +230,7 @@ test11(): () ==
     e0: Env := basicEnv()
     ts: TypeSystem := simpleTypeSystem()
 
-    lib: AxiomLibrary := newLibrary(ts, e0, [csimple11, csimple3, csimple9])
+    lib: AxiomLibrary := newLibrary(ts, e0, nrlib("test11", [csimple11, csimple3, csimple9]))
     e2: Env := newEnv((sym: Symbol): Partial TForm +-> tform(lib, sym), e0)
 
     tf: TForm := retract lookup(e2, -"CSimple11")
@@ -234,5 +243,4 @@ test2()
 test3()
 --test9()
 --test10()
-
 test11()
