@@ -20,6 +20,7 @@ export AxiomInterface to Foreign Java("aldor.typelib")
 export AxiomLibrary to Foreign Java("aldor.typelib")
 export Env to Foreign Java("aldor.typelib")
 export SymbolDatabase to Foreign Java("aldor.typelib")
+export SymbolDatabaseHelper to Foreign Java("aldor.typelib")
 
 export JList ==> java_.util_.List;
 export JIterable ==> java_.lang_.Iterable;
@@ -62,6 +63,8 @@ AxiomInterface: with
     annotated: (%, AbSyn) -> AnnotatedAbSyn
     library: % -> AxiomLibrary
 
+    allTypes: % -> ArrayList AnnotatedAbSyn
+
     newApply: (AnnotatedAbSyn, JList AnnotatedAbSyn) -> AnnotatedAbSyn
 == add
     Rep == Record(str: String, lib: AxiomLibrary, env: Env)
@@ -99,19 +102,16 @@ AxiomInterface: with
         arrayList(type e for e in exports)
 
     directParents(iface: %, tf0: TForm): ArrayList TForm ==
+        import from SExpression
         import from Symbol, TfSignature, SimpleSatisfier, TfGeneral
         local isParent(e: Export): Boolean ==
             import from SExpression
             signature? type e => false
-            stdout << sexpression type e << " = " << sexpression tf << " --> " << (type e = tf) << newline
             type e = tf => false
             true
-        stdout << "Direct parents " << tf0 << " " << general? tf0 << newline
         tf: TForm := if satisfiesDomain? tf0 then tf := type(tf0::TfGeneral) else tf0
         --tf := tf0
-        stdout << "Direct parents " << tf << newline
         exports: List Export := directCatParents(tf)
-        stdout << "Direct parents --> " << exports << newline
         arrayList(type e for e in exports | isParent(e))
 
     directOperations(iface: %, ab: AnnotatedAbSyn): ArrayList NamedExport ==
@@ -134,26 +134,6 @@ AxiomInterface: with
             sym(tfArg::TfDeclare)
         [(formalSymbol mapArg, cformArg) for mapArg in args(mapTf::TfMap) for cformArg in applyArguments cform]
 
-    local arrayList(list: List NamedExport): ArrayList NamedExport ==
-        import from MachineInteger
-        al: ArrayList NamedExport := new(# list)
-        for exp in list repeat
-            al._add(exp)
-        return al
-
-    local arrayList(list: List SymbolMeaning): ArrayList SymbolMeaning ==
-        import from MachineInteger
-        al: ArrayList SymbolMeaning := new(# list)
-        for exp in list repeat
-            al._add(exp)
-        return al
-
-    local arrayList(list: Generator TForm): ArrayList TForm ==
-        import from MachineInteger
-        al: ArrayList TForm := new(10)
-        for exp in list repeat
-            al._add(exp)
-        return al
 
     infer(iface: %, ab: AnnotatedAbSyn): TForm == infer(env(iface), ab)
 
@@ -170,6 +150,45 @@ AxiomInterface: with
         import from MachineInteger
         ll: List AnnotatedAbSyn := [l.get(i) for i in 0.. (l.size()) -1]
         newApply(op, ll)
+
+    allTypes(iface: %): ArrayList AnnotatedAbSyn ==
+        import from AxiomSymbol, List Symbol
+        arrayList(constructorForm symbol(library iface, sym) for sym in ids library iface)
+
+    local arrayList(list: List NamedExport): ArrayList NamedExport ==
+        import from MachineInteger
+        al: ArrayList NamedExport := new(# list)
+        for exp in list repeat
+            al._add(exp)
+        return al
+
+    local arrayList(list: List SymbolMeaning): ArrayList SymbolMeaning ==
+        import from MachineInteger
+        al: ArrayList SymbolMeaning := new(# list)
+        for exp in list repeat
+            al._add(exp)
+        return al
+
+    local arrayList(gg: Generator SymbolMeaning): ArrayList SymbolMeaning ==
+        import from MachineInteger
+        al: ArrayList SymbolMeaning := new(10)
+        for exp in gg repeat
+            al._add(exp)
+        return al
+
+    local arrayList(list: Generator TForm): ArrayList TForm ==
+        import from MachineInteger
+        al: ArrayList TForm := new(10)
+        for exp in list repeat
+            al._add(exp)
+        return al
+
+    local arrayList(list: Generator AnnotatedAbSyn): ArrayList AnnotatedAbSyn ==
+        import from MachineInteger
+        al: ArrayList AnnotatedAbSyn := new(10)
+        for exp in list repeat
+            al._add(exp)
+        return al
 
 NamedExport: SExpressionOutputType with
     namedExport: Export -> %
@@ -194,3 +213,10 @@ NamedExport: SExpressionOutputType with
     sexpression(ne: %): SExpression ==
         import from Symbol, TForm
         [sexpr(-"Named"), sexpr name ne, sexpression type ne]
+
+SymbolDatabaseHelper: with
+    nrlib: String -> SymbolDatabase
+== add
+    nrlib(p: String): SymbolDatabase ==
+        import from FileName
+        nrlib(p, (): List FileName +-> [f::FileName for f in paths(p)$LibReader | extension(f::FileName) = "NRLIB"])

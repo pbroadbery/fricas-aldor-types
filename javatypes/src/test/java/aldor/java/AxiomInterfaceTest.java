@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AxiomInterfaceTest {
@@ -104,7 +105,7 @@ public class AxiomInterfaceTest {
         }
     }
 
-    List<TForm> expand(TForm tf) {
+    private List<TForm> expand(TForm tf) {
         ArrayList<TForm> parents = iface.directParents(tf);
         return parents.stream().flatMap(p -> Stream.concat(Stream.of(p), (expand(p).stream()))).collect(Collectors.toList());
     }
@@ -128,4 +129,13 @@ public class AxiomInterfaceTest {
         }
 
     }
+
+    @Test
+    public void testAllTypes() {
+        ArrayList<AnnotatedAbSyn> allTypes = iface.allTypes();
+        assertFalse(allTypes.stream().map(AnnotatedAbSyn::toString).anyMatch(s -> s.contains("Ring&")));
+        assertFalse(allTypes.isEmpty());
+    }
+
 }
+

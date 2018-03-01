@@ -163,14 +163,12 @@ assertSatisfies(S: TForm, T: TForm): () ==
     import from GeneralAssert
     satisfies ==> (satisfier$SimpleSatisfier)
     r: SatResult := satisfies(S, T)
-    stdout << "Satisfies: " << S << " sat " << T << " = " << r << newline
     assertTrue(success? r)
 
 assertDoesNotSatisfy(S: TForm, T: TForm): () ==
     import from GeneralAssert
     satisfies ==> (satisfier$SimpleSatisfier)
     r: SatResult := satisfies(S, T)
-    stdout << "Satisfies: " << S << " sat " << T << " = " << r << newline
     assertFalse(success? r)
 
 test1()

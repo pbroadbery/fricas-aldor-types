@@ -64,7 +64,6 @@ SimpleSatisfier: with
     local isSyntaxCategory(tf: TForm): Boolean ==
         import from TfGeneral, TfDeclare, TfCatType
         type := modDeclare type(tf::TfGeneral)
-        stdout << "Type of cat: " << type << newline
         catType? type
 
     local multiSat(S: TForm, T: TForm): Partial SatResult ==
@@ -96,9 +95,9 @@ SimpleSatisfier: with
 
     satisfier(S: TForm, T: TForm): SatResult ==
         import from Symbol
-        stdout << "(Sat " << id S << " " << id T << newline
+        --stdout << "(Sat " << id S << " " << id T << newline
         r := satisfierX(S, T)
-        stdout << " Sat: " << r << ")" << newline
+        --stdout << " Sat: " << r << ")" << newline
         r
 
     satisfiesDomain?(S: TForm): Boolean ==

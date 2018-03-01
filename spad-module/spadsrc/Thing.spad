@@ -1,0 +1,7 @@
+
+Foo: with
+    addOne: Integer -> Integer
+== add
+    addOne(n: %): Integer == n + 1
+
+foo(X: String): String == Collection

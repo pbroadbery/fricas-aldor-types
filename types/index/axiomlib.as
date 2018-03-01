@@ -75,7 +75,9 @@ AxiomDaaseFiles: with
     Rep == Record(interp: IndexedFile, browse: IndexedFile)
     import from Rep, IndexedFile
 
-    symbols(daase: %): List Symbol == keys(rep(daase).interp)
+    symbols(daase: %): List Symbol ==
+        import from Symbol, MachineInteger
+        [k for k in keys(rep(daase).interp) | substring(name k, #name(k) - 1) ~= "&"]
 
     new(interpDaase: IndexedFile, browseDaase: IndexedFile): % == per [interpDaase, browseDaase]
 
@@ -91,21 +93,22 @@ AxiomDaaseFiles: with
 NrLibFiles: with
     new: (() -> List FileName) -> %
     get: (%, Symbol, LibAttribute) -> SExpression
-    symbols: % -> List Symbol
+    abbrevs: % -> List Symbol
 == add
     FileMaybe == Union(name: FileName, file: IndexedFile)
     Rep == HashTable(Symbol, FileMaybe)
     import from Rep, FileMaybe, 'none'
 
-    symbols(files: %): List Symbol == [k for (k, v) in rep(files)]
+    abbrevs(files: %): List Symbol == [k for (k, v) in rep(files)]
 
     new(ls: () -> List FileName): % ==
         import from List FileName
         local isNrLib(fname: FileName): Boolean == extension(fname) = "NRLIB"
-        per [(readAbbrev fname, [fname]) for fname in ls() | isNrLib(fname)]
+        local lsNrLib(): Generator FileName == (fname::String + "/index.KAF")::FileName for fname in ls() | isNrLib(fname)
+        per [(readAbbrev fname, [fname]@FileMaybe) for fname in lsNrLib()]
 
     get(files: %, sym: Symbol, libAttr: LibAttribute): SExpression ==
-        import from FileName, MachineInteger
+        import from FileName, MachineInteger, String
         fileMaybe: FileMaybe := rep(files).sym
         if fileMaybe case name then
             indexedFile: IndexedFile := new(fileMaybe.name::String)
@@ -127,6 +130,7 @@ SymbolDatabase: with
     nrlib: (String, () -> List FileName) -> %
     nrlib: (String, List HashTable(Symbol, SExpression)) -> %
     daases: String -> %
+    union: List % -> %
 == add
     Rep == Record(name: String, symbols: List Symbol, getter: (Symbol, LibAttribute) -> SExpression)
     import from Rep
@@ -135,12 +139,22 @@ SymbolDatabase: with
 
     symbols(db: %): List Symbol == rep(db).symbols
 
-    get(db: %, sym: Symbol)(attr: LibAttribute): SExpression == (rep(db).getter)(sym, attr)
+    get(db: %, sym: Symbol)(attr: LibAttribute): SExpression ==
+        (rep(db).getter)(sym, attr)
 
     nrlib(path: String, ls: () -> List FileName): % ==
         nrlibFiles: NrLibFiles := new(ls)$NrLibFiles
-        per [path, symbols(nrlibFiles),
-              (sym: Symbol, attr: LibAttribute): SExpression +-> get(nrlibFiles, sym, attr)]
+        abbrevForSymbol: HashTable(Symbol, Symbol) := [(nrlibSymbol abbrev, abbrev) for abbrev in abbrevs(nrlibFiles)]
+
+        nrlibSymbol(abbrev: Symbol): Symbol ==
+            cform: SExpression := get(nrlibFiles, abbrev, libAttrConstructorForm$LibAttribute)
+            while not sym? cform repeat cform := first cform
+            sym cform
+
+        get(sym: Symbol, attr: LibAttribute): SExpression ==
+            get(nrlibFiles, abbrevForSymbol sym, attr)
+
+        per [path, [keys abbrevForSymbol], get]
 
 
     nrlib(path: String, tbls: List HashTable(Symbol, SExpression)): % ==
@@ -160,6 +174,8 @@ SymbolDatabase: with
         per [path,
                 symbols daaseFiles,
                 (sym: Symbol, attr: LibAttribute): SExpression +-> get(daaseFiles, sym, attr)]
+
+    union(l: List %): % == error "union not yet implemented"
 
 SymbolKind: Join(PrimitiveType, OutputType) with
     name: % -> Symbol
@@ -447,23 +463,20 @@ AxiomLibrary: with
             rep(rec).files.(definedSymbol sym) := sym
         rec
 
-
     local makeSymbol(lib: %, sym: Symbol): AxiomSymbol == newAxiomSymbol(sym, lib)
 
     local axiomSymbol(lib: %, sym: Symbol): Partial AxiomSymbol ==
-        import from Partial AxiomSymbol
+        import from Partial AxiomSymbol, HashTable(Symbol, AxiomSymbol), MachineInteger
         r := find(sym, rep(lib).files)
         if failed? r then
-            stdout << "Failed to find " << sym << " in " << rep(lib).path << newline
+            stdout << "Failed to find " << sym << " in " << rep(lib).path << " " << rep(lib).files << newline
         r
 
     tform(lib: %, sym: Symbol): Partial TForm ==
         import from AbSyn
         axSym: Partial AxiomSymbol := axiomSymbol(lib, sym)
-        stdout << "Sym: " << sym << " --> " << axSym << newline
         failed? axSym => failed
         theKind: SymbolKind := kind retract axSym
-        stdout << "kind: " << theKind << newline
         theKind = domain =>
             [domainForm(retract axSym)]
         theKind = package =>

@@ -692,9 +692,7 @@ TypePackage: with
 == add
 
     infer(sat: FnSatisfier, ab: AnnotatedAbSyn): TForm ==
-        stdout << "(TypePackage:::Infer: " << ab << newline
         tf := infer1(sat, ab)
-        stdout << " TypePackage::Infer: " << tf << ")" << newline
         tf
 
     local infer1(sat: FnSatisfier, ab: AnnotatedAbSyn): TForm ==
@@ -770,7 +768,6 @@ TypePackage: with
             stdout << "Unknown conversion " << sexpression tf << newline
             newNone()
         ab := helper tf
-        stdout << "abAbSyn: " << sexpression tf << " --> " << sexpression ab << newline
         return ab
 
     canonicalise(ab: AnnotatedAbSyn): AnnotatedAbSyn ==
