@@ -254,7 +254,6 @@ AxiomSymbol: OutputType with
 
     kind(axSym: %): SymbolKind ==
         sx := lookup(axSym, libAttrConstructorKind)
-        stdout << "Kind " << axSym << " " << sx << newline
         valueOf(sym sx)$SymbolKind
 
     constructorModemap(axSym: %): ConstructorModemap ==
@@ -276,17 +275,11 @@ AxiomSymbol: OutputType with
         else
             newMap([placeholderTForm vars.i for i in 0.. for sx in rest form], [boundCategory sym])
 
-    categoryForm(sym: %): TForm ==
-        stdout << "(CategoryForm " << sym << newline
-        df := categoryForm1 sym
-        stdout << " CategoryForm " << sym << " = " << df << ")" << newline
-        df
-
     constructorForm(axSym: %): AnnotatedAbSyn ==
         sx := lookup(axSym, libAttrConstructorForm)
         annotate(env axSym, parse sx)
 
-    local categoryForm1(sym: %): TForm ==
+    categoryForm(sym: %): TForm ==
         import from List AbSyn
         import from SExpression
         form := symForm constructorModemap sym
@@ -444,11 +437,7 @@ AxiomLibrary: with
     symbol(lib: %, sym: Symbol): AxiomSymbol == rep(lib).files.sym
 
     env(lib: %): Env ==
-        lookup(sym: Symbol): Partial TForm ==
-            import from SExpression, TForm
-            ptf := tform(lib, sym)
-            if not failed? ptf then stdout << "Lookup: " << sym << " " << sexpression retract ptf << newline
-            ptf
+        lookup(sym: Symbol): Partial TForm == tform(lib, sym)
         newEnv(lookup, rep(lib).env)
 
     ids(lib: %): List Symbol == [key for (key, value) in rep(lib).files]

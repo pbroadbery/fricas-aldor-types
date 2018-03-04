@@ -281,9 +281,8 @@ TfGeneral: TFormSubType with
     parentExports(tf: %): List Export ==
         import from TfThird
         myType: TForm := type(tf)
-        stdout << "tfGeneral parents " << id myType << " " << myType << newline
-        third? myType => thdParents(myType::TfThird)
-        []
+        not third? myType => []
+        thdParents(myType::TfThird)
 
 TfIf: TFormSubType with
     if?: TForm -> Boolean
@@ -589,9 +588,9 @@ Env: with
         failed
 
     infer(e: %, ab: AnnotatedAbSyn): TForm ==
-        stdout << "(env infer: " << ab << newline
+        --stdout << "(env infer: " << ab << newline
         res := first(rep(e)).infer(ab)
-        stdout << " env infer: " << ab << " res == " << res << ")" <<newline
+        --stdout << " env infer: " << ab << " res == " << res << ")" <<newline
         res
 
 AnnotatedId: with
@@ -742,7 +741,7 @@ TypePackage: with
         --[newSymbolMeaning(name exp, subst(type exp, sigma)) for exp in sigs]
 
     allCatParents(tf: TForm): List Export ==
-        stdout << "Cat parents starts " << tf << newline
+        --stdout << "Cat parents starts " << tf << newline
         import from TForm, Export
         expand(tf: TForm, seen: HashSet TForm): (List Export, List TForm) ==
             parentExports := [child for child in directCatParents tf | not member?(type child, seen)]
@@ -756,7 +755,7 @@ TypePackage: with
             (exps, more) := expand(first toDo, seen)
             exports := append!(exps, exports)
             toDo := append!(more, rest toDo)
-        stdout << "Cat parents done " << exports << newline
+        --stdout << "Cat parents done " << exports << newline
         exports
 
     asAbSyn(e: Env, tf: TForm): AnnotatedAbSyn ==

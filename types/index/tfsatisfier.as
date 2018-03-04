@@ -24,7 +24,6 @@ SimpleSatisfier: with
 
     local allSatType(S: TForm, T: TForm): Partial SatResult ==
         import from TfType, TfMulti
-        stdout << "all sat type " << theType? T << " " << multi? S << newline
         not theType? T => failed
         multi? S => [failed()]
         [success()]
@@ -34,13 +33,13 @@ SimpleSatisfier: with
         not isCategory? S => failed
         not isCategory? T => failed
         true => [success()]
-        stdout << "(DomainSat: " << S << " && " << T << newline
+        --stdout << "(DomainSat: " << S << " && " << T << newline
         parentsS := allCatParents S
         parentsT := allCatParents T
-        stdout << "ParentS: " << parentsS << newline
-        stdout << "ParentT: " << parentsT << newline
+        --stdout << "ParentS: " << parentsS << newline
+        --stdout << "ParentT: " << parentsT << newline
         res := if _and/(member?(parentT, parentsS) for parentT in parentsT) then [success()] else [failed()]
-        stdout << "DomainSat: " << res << ")" << newline
+        --stdout << "DomainSat: " << res << ")" << newline
         res
 
     local declareSatRHS(S: TForm, T: TForm): Partial SatResult ==
@@ -55,7 +54,7 @@ SimpleSatisfier: with
 
     local isCategory?(tf: TForm): Boolean ==
         import from Symbol
-        stdout << "isCategory? " << tf << " " << category? tf << " general? tf = " << general? tf << " id tf = " << id tf << newline
+        --stdout << "isCategory? " << tf << " " << category? tf << " general? tf = " << general? tf << " id tf = " << id tf << newline
         import from TfCategory, TfGeneral
         category? tf => true
         general? tf => isSyntaxCategory(tf)
