@@ -1,5 +1,0 @@
-
-
-pp: Polynomial Integer := x+1
-foo: 
-pp^10
